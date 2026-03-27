@@ -31,15 +31,24 @@
   box-shadow: var(--shadow-lg);
 }
 
-.auth-card__icon {
-  width: 56px;
-  height: 56px;
+.auth-card__logo-wrap {
+  width: 72px;
+  height: 72px;
   margin: 0 auto var(--space-lg);
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, var(--accent), var(--sage));
+  background: linear-gradient(135deg, var(--accent-soft), var(--sage-soft));
   display: grid;
   place-items: center;
-  font-size: 1.5rem;
+  padding: 6px;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+}
+
+.auth-card__logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .auth-card h1 {
