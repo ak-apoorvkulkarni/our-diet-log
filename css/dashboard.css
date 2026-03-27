@@ -476,6 +476,28 @@
   font-family: var(--font-brand);
 }
 
+.app-footer__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.app-footer__credit {
+  margin: 0;
+  font-size: 0.7rem;
+}
+
+.app-footer a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.app-footer a:hover {
+  text-decoration: underline;
+}
+
 .app-footer code {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.75rem;
