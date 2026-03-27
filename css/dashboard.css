@@ -420,9 +420,11 @@
   color: var(--text-muted);
   border-top: 1px solid var(--border);
   background: var(--surface-glass);
+  font-family: var(--font-brand);
 }
 
 .app-footer code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.75rem;
   background: var(--bg-muted);
   padding: 0.15rem 0.4rem;

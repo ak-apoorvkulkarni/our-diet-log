@@ -52,7 +52,7 @@
 }
 
 .auth-card h1 {
-  font-family: var(--font-display);
+  font-family: var(--font-brand);
   font-size: 1.5rem;
   font-weight: 600;
   text-align: center;

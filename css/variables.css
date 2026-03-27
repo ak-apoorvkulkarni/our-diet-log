@@ -2,6 +2,7 @@
 :root {
   --font-sans: "DM Sans", system-ui, sans-serif;
   --font-display: "Fraunces", Georgia, serif;
+  --font-brand: "Noto Sans Devanagari", "DM Sans", system-ui, sans-serif;
 
   --bg-base: #f6f3ee;
   --bg-elevated: #fffcf7;
