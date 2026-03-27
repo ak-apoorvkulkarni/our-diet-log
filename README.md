@@ -17,7 +17,9 @@ This project is **fully static** — there is no backend. Meal data is stored on
 
 ## Sharing between two phones
 
-Browsers do not sync with each other automatically.
+**Recommended — cloud sync:** Configure optional **Supabase** so both of you use the same deployed site and the **same password**; meals merge automatically. See **[CLOUD_SYNC.md](./CLOUD_SYNC.md)** and `supabase/schema.sql`.
+
+**Manual — backup file:** Browsers do not sync with each other automatically without cloud setup.
 
 1. On device A: **Settings → Download backup** (encrypted blob + salt).
 2. Copy the JSON file to device B (AirDrop, Signal, etc.).

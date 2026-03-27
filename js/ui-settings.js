@@ -2,6 +2,7 @@
  * Settings: rename people, backup / restore vault file, lock session.
  */
 import { applyBackupToLocalStorage, getPbkdf2Iterations } from "./storage.js";
+import { isSupabaseConfigured } from "./sync-remote.js";
 
 export function bindSettings(state, passwordRef, persist, showToast, onLock) {
   document.getElementById("settings-user1-name")?.addEventListener("change", async (e) => {
@@ -70,4 +71,10 @@ export function fillSettingsForm(state) {
   const i2 = document.getElementById("settings-user2-name");
   if (i1 && u1) i1.value = u1.name;
   if (i2 && u2) i2.value = u2.name;
+  const syncLine = document.getElementById("sync-status-line");
+  if (syncLine) {
+    syncLine.textContent = isSupabaseConfigured()
+      ? "Cloud sync: on — saves merge with Supabase (same password on both phones)."
+      : "Cloud sync: off — local only until you add Supabase keys in index.html (see CLOUD_SYNC.md).";
+  }
 }

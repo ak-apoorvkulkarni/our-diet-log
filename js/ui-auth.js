@@ -10,6 +10,7 @@ import {
   applyBackupToLocalStorage,
 } from "./storage.js";
 import { getWebCryptoBlockReason, localStorageAvailable } from "./crypto-env.js";
+import { hydrateLocalFromCloudIfEmpty } from "./sync-remote.js";
 
 function hideAuthOverlay(el) {
   if (!el) return;
@@ -106,6 +107,7 @@ export function initAuthScreen({ onAuthed, showToast }) {
     }
     try {
       await new Promise((r) => setTimeout(r, 0));
+      await hydrateLocalFromCloudIfEmpty(pwd);
       const data = await loadDecrypted(pwd);
       if (!data) {
         errUnlock.textContent =
@@ -113,7 +115,7 @@ export function initAuthScreen({ onAuthed, showToast }) {
         return;
       }
       try {
-        onAuthed(pwd, data);
+        await onAuthed(pwd, data);
       } catch (inner) {
         console.error(inner);
         errUnlock.textContent =
@@ -183,11 +185,26 @@ export function initAuthScreen({ onAuthed, showToast }) {
     }
     try {
       await new Promise((r) => setTimeout(r, 0));
+      await hydrateLocalFromCloudIfEmpty(p1);
+      if (hasStoredVault()) {
+        const data = await loadDecrypted(p1);
+        showToast("Loaded your shared log from the cloud.");
+        try {
+          await onAuthed(p1, data);
+        } catch (inner) {
+          console.error(inner);
+          errCreate.textContent =
+            "Could not start the app: " + (inner?.message || String(inner)) + ". Try a hard refresh.";
+          return;
+        }
+        hideAuthOverlay(screen);
+        return;
+      }
       await createVault(p1, createEmptyState());
       const data = await loadDecrypted(p1);
       showToast("Vault created — your meals are encrypted on this device.");
       try {
-        onAuthed(p1, data);
+        await onAuthed(p1, data);
       } catch (inner) {
         console.error(inner);
         errCreate.textContent =

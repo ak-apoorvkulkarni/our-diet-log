@@ -19,9 +19,17 @@ import {
   persistWeekCursor,
 } from "./ui-dashboard.js";
 import { bindSettings, fillSettingsForm } from "./ui-settings.js";
+import {
+  mergeRemoteVault,
+  pushVaultRow,
+  deriveHouseholdRowId,
+  isSupabaseConfigured,
+  subscribeHouseholdVaultRealtime,
+} from "./sync-remote.js";
 
 let appState = ensureStateShape(null);
 let sessionPassword = "";
+let stopRealtime = null;
 let weekCursor = weekCursorFromStorage();
 
 function passwordRef() {
@@ -30,6 +38,14 @@ function passwordRef() {
 
 async function persist() {
   await saveEncrypted(sessionPassword, appState);
+  if (isSupabaseConfigured() && sessionPassword) {
+    try {
+      const hid = await deriveHouseholdRowId(sessionPassword);
+      await pushVaultRow(hid);
+    } catch (e) {
+      console.warn("Sync push failed:", e);
+    }
+  }
 }
 
 function showToast(msg) {
@@ -92,7 +108,12 @@ function initMainApp() {
   if (fv) {
     const local =
       location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.hostname === "";
-    fv.innerHTML = `Our Diet Log · <code>v${APP_VERSION}</code>${local ? " · running locally" : ""}`;
+    let extra = "";
+    if (isSupabaseConfigured()) {
+      extra =
+        ' · <span title="Saves go to the cloud; when you both have the app open, each other\'s changes show up within a few seconds">cloud sync + live updates</span>';
+    }
+    fv.innerHTML = `Our Diet Log · <code>v${APP_VERSION}</code>${local ? " · running locally" : ""}${extra}`;
   }
   refreshUserSelects();
   fillSettingsForm(appState);
@@ -139,13 +160,51 @@ function initMainApp() {
   document.getElementById("modal-edit")?.addEventListener("keydown", (e) => {
     if (e.key === "Escape") document.getElementById("modal-edit-close")?.click();
   });
+
+  void startRealtimeSubscription();
+}
+
+async function startRealtimeSubscription() {
+  if (!isSupabaseConfigured() || !sessionPassword) return;
+  try {
+    if (stopRealtime) {
+      stopRealtime();
+      stopRealtime = null;
+    }
+    const hid = await deriveHouseholdRowId(sessionPassword);
+    stopRealtime = await subscribeHouseholdVaultRealtime(hid, sessionPassword, {
+      getState: () => appState,
+      onMerged: async (merged) => {
+        appState = ensureStateShape(merged);
+        await persist();
+        refreshUserSelects();
+        renderDashboardView();
+        renderMealsView();
+        showToast("Partner updated — progress refreshed.");
+      },
+    });
+  } catch (e) {
+    console.warn("Realtime subscription failed:", e);
+  }
 }
 
 function start() {
   initAuthScreen({
-    onAuthed: (pwd, data) => {
+    onAuthed: async (pwd, data) => {
       sessionPassword = pwd;
-      appState = ensureStateShape(data);
+      let next = ensureStateShape(data);
+      if (isSupabaseConfigured()) {
+        try {
+          next = await mergeRemoteVault(pwd, next);
+          await saveEncrypted(pwd, next);
+          const hid = await deriveHouseholdRowId(pwd);
+          await pushVaultRow(hid);
+        } catch (e) {
+          console.warn(e);
+          showToast("Cloud sync issue — continuing with data on this device.");
+        }
+      }
+      appState = next;
       initMainApp();
     },
     showToast,
