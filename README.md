@@ -1,6 +1,11 @@
 # Our Diet Log
 
-A small static website for two people to log meals with photos, optional calories, and health ratings (healthy / okay / unhealthy). Includes a **weekly overview** with calorie-by-day bars, a health mix chart, and simple improvement tips.
+**Repository:** [github.com/ak-apoorvkulkarni/our-diet-log](https://github.com/ak-apoorvkulkarni/our-diet-log)  
+**Live site (GitHub Pages):** [ak-apoorvkulkarni.github.io/our-diet-log](https://ak-apoorvkulkarni.github.io/our-diet-log/)
+
+A small static website for two people to log meals with photos, optional calories, and health ratings (healthy / okay / unhealthy). Includes **Household** and **per-person** weekly dashboards with calorie trends, wellness score, and recommendations.
+
+Current app version is defined in `js/version.js`.
 
 ## Privacy model (GitHub Pages)
 
