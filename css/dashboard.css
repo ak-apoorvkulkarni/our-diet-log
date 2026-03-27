@@ -281,6 +281,18 @@
   gap: var(--space-sm);
 }
 
+@media (max-width: 599px) {
+  .dash-grouped-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: var(--space-xs);
+  }
+
+  .dash-bar-group {
+    min-width: 280px;
+  }
+}
+
 .dash-bar-group {
   display: grid;
   grid-template-columns: 36px 1fr 72px;

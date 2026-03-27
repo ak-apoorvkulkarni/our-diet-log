@@ -124,6 +124,66 @@ function initMainApp() {
     location.reload();
   });
 
+  function closeMobileSidebarIfNeeded() {
+    if (!window.matchMedia("(max-width: 899px)").matches) return;
+    const sidebar = document.getElementById("app-sidebar");
+    const backdrop = document.getElementById("sidebar-backdrop");
+    const toggle = document.getElementById("sidebar-toggle");
+    sidebar?.classList.remove("is-open");
+    if (backdrop) {
+      backdrop.hidden = true;
+      backdrop.setAttribute("aria-hidden", "true");
+    }
+    if (toggle) {
+      toggle.setAttribute("aria-expanded", "false");
+      toggle.setAttribute("aria-label", "Open menu");
+    }
+    document.body.style.overflow = "";
+  }
+
+  function bindMobileSidebar() {
+    const sidebar = document.getElementById("app-sidebar");
+    const backdrop = document.getElementById("sidebar-backdrop");
+    const btn = document.getElementById("sidebar-toggle");
+    if (!sidebar || !backdrop || !btn) return;
+
+    const mq = window.matchMedia("(max-width: 899px)");
+
+    function setSidebarOpen(open) {
+      if (!mq.matches) {
+        sidebar.classList.remove("is-open");
+        backdrop.hidden = true;
+        backdrop.setAttribute("aria-hidden", "true");
+        btn.setAttribute("aria-expanded", "false");
+        document.body.style.overflow = "";
+        return;
+      }
+      sidebar.classList.toggle("is-open", open);
+      backdrop.hidden = !open;
+      backdrop.setAttribute("aria-hidden", open ? "false" : "true");
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      btn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+      document.body.style.overflow = open ? "hidden" : "";
+    }
+
+    btn.addEventListener("click", () => {
+      const open = !sidebar.classList.contains("is-open");
+      setSidebarOpen(open);
+    });
+
+    backdrop.addEventListener("click", () => setSidebarOpen(false));
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && mq.matches) setSidebarOpen(false);
+    });
+
+    mq.addEventListener("change", () => {
+      if (!mq.matches) setSidebarOpen(false);
+    });
+  }
+
+  bindMobileSidebar();
+
   document.querySelectorAll("[data-nav]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const id = btn.getAttribute("data-nav");
@@ -131,6 +191,7 @@ function initMainApp() {
       if (id === "meals") renderMealsView();
       if (id === "dashboard") renderDashboardView();
       if (id === "settings") fillSettingsForm(appState);
+      closeMobileSidebarIfNeeded();
     });
   });
 

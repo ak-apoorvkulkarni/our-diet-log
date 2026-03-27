@@ -97,6 +97,27 @@
   flex-shrink: 0;
 }
 
+.security-list {
+  margin: 0;
+  padding-left: 1.15rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.security-list li {
+  margin-bottom: var(--space-md);
+}
+
+.security-list li:last-child {
+  margin-bottom: 0;
+}
+
+.security-list strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
 .field input[type="text"],
 .field input[type="number"],
 .field input[type="password"],
