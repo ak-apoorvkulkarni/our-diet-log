@@ -3,6 +3,39 @@
  */
 import { addMeal, updateMeal, deleteMeal, sortMealsDesc } from "./meals-store.js";
 import { fileToCompressedDataUrl } from "./image-utils.js";
+import { guessCalories } from "./calorie-estimate.js";
+
+function wireGuessCaloriesButton(
+  buttonId,
+  { getTitle, getCaloriesInput, getPreviewImg, getFileInput },
+  showToast
+) {
+  const btn = document.getElementById(buttonId);
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    const titleEl = getTitle();
+    const calEl = getCaloriesInput();
+    btn.disabled = true;
+    const prev = btn.textContent;
+    btn.textContent = "…";
+    try {
+      const r = await guessCalories({
+        title: titleEl?.value,
+        imageElement: getPreviewImg?.(),
+        imageFile: getFileInput?.()?.files?.[0],
+      });
+      if (r.kcal != null) {
+        calEl.value = String(r.kcal);
+        showToast(`~${r.kcal} kcal — ${r.source}. Adjust if needed.`);
+      } else {
+        showToast(r.message || "Could not estimate.");
+      }
+    } finally {
+      btn.disabled = false;
+      btn.textContent = prev;
+    }
+  });
+}
 
 function healthBadge(h) {
   if (h === "healthy") return '<span class="badge badge--healthy">Healthy</span>';
@@ -106,6 +139,28 @@ export function bindLogForm(state, passwordRef, persist, showToast) {
       btn.dataset.selected = "1";
     });
   });
+
+  wireGuessCaloriesButton(
+    "btn-guess-calories",
+    {
+      getTitle: () => document.getElementById("meal-title"),
+      getCaloriesInput: () => document.getElementById("meal-calories"),
+      getPreviewImg: () => document.querySelector("#meal-photo-preview img"),
+      getFileInput: () => document.getElementById("meal-photo"),
+    },
+    showToast
+  );
+
+  wireGuessCaloriesButton(
+    "btn-guess-calories-edit",
+    {
+      getTitle: () => document.getElementById("edit-title"),
+      getCaloriesInput: () => document.getElementById("edit-calories"),
+      getPreviewImg: () => document.querySelector("#edit-photo-preview img"),
+      getFileInput: () => document.getElementById("edit-photo"),
+    },
+    showToast
+  );
 
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();

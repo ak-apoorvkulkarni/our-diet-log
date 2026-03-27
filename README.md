@@ -3,7 +3,9 @@
 **Repository:** [github.com/ak-apoorvkulkarni/our-diet-log](https://github.com/ak-apoorvkulkarni/our-diet-log)  
 **Live site (GitHub Pages):** [ak-apoorvkulkarni.github.io/our-diet-log](https://ak-apoorvkulkarni.github.io/our-diet-log/)
 
-A small static website for two people to log meals with photos, optional calories, and health ratings (healthy / okay / unhealthy). Includes **Household** and **per-person** weekly dashboards with calorie trends, wellness score, and recommendations.
+A small static website for two people to log meals with photos, optional calories, and health ratings (healthy / okay / unhealthy). Includes **Household** and **per-person** weekly dashboards with calorie trends, wellness score, and recommendations. **Guess ~kcal** fills in a rough calorie estimate from the food name (built-in list + optional USDA lookup) or, if needed, a very rough image guess (MobileNet — first load downloads a small model).
+
+Optional `window.__DIET_USDA_API_KEY__` in `index.html` raises USDA rate limits; otherwise a shared demo key is used.
 
 Current app version is defined in `js/version.js`.
 
@@ -17,7 +19,7 @@ This project is **fully static** — there is no backend. Meal data is stored on
 
 ## Sharing between two phones
 
-**Recommended — cloud sync:** Configure optional **Supabase** so both of you use the same deployed site and the **same password**; meals merge automatically. See **[CLOUD_SYNC.md](./CLOUD_SYNC.md)** and `supabase/schema.sql`.
+**Recommended — cloud sync:** Configure **Supabase** (create project, run `supabase/schema.sql`, then run `node scripts/apply-supabase-config.mjs` or paste URL + anon key into `index.html`). Step-by-step: **[CLOUD_SYNC.md](./CLOUD_SYNC.md)**.
 
 **Manual — backup file:** Browsers do not sync with each other automatically without cloud setup.
 

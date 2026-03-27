@@ -26,14 +26,16 @@
 }
 
 .app-header__logo {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--radius-sm);
-  background: linear-gradient(135deg, var(--accent), var(--sage));
-  display: grid;
-  place-items: center;
-  color: white;
-  font-size: 1.1rem;
+  background: linear-gradient(135deg, var(--accent-soft), var(--sage-soft));
+  border: 1px solid var(--border);
+  display: block;
+  object-fit: contain;
+  padding: 3px;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .app-header__title {

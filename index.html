@@ -22,7 +22,14 @@
     <div id="app-shell" class="app-shell" hidden>
       <header class="app-header">
         <div class="app-header__brand">
-          <span class="app-header__logo" aria-hidden="true">🍽</span>
+          <img
+            class="app-header__logo"
+            src="assets/logo.png"
+            alt=""
+            width="40"
+            height="40"
+            decoding="async"
+          />
           <span class="app-header__title">Our Diet Log</span>
         </div>
         <div class="app-header__actions">
@@ -87,7 +94,13 @@
                 </div>
               </div>
               <div class="field">
-                <label for="meal-calories">Calories (optional)</label>
+                <div class="field__label-row">
+                  <label for="meal-calories">Calories (optional)</label>
+                  <button type="button" class="btn btn--secondary btn--sm" id="btn-guess-calories">
+                    Guess ~kcal
+                  </button>
+                </div>
+                <p class="field-hint">Rough guess from food name (and optional photo). Not exact — adjust as you like.</p>
                 <input id="meal-calories" type="number" min="0" step="1" placeholder="kcal" />
               </div>
               <div class="field">
@@ -204,7 +217,12 @@
             </div>
           </div>
           <div class="field">
-            <label for="edit-calories">Calories</label>
+            <div class="field__label-row">
+              <label for="edit-calories">Calories</label>
+              <button type="button" class="btn btn--secondary btn--sm" id="btn-guess-calories-edit">
+                Guess ~kcal
+              </button>
+            </div>
             <input id="edit-calories" type="number" min="0" step="1" placeholder="kcal" />
           </div>
           <div class="field">
@@ -277,9 +295,12 @@
         </form>
 
         <div class="auth-note">
-          <strong>Privacy:</strong> This is a static site. There is no server — data stays in your browser unless you
-          export a backup. Anyone with the password on this device can read the log. For syncing between phones, use
-          Settings → backup file on one device and restore on the other (same password).
+          <strong>Privacy:</strong> This is a static site — there is no server that stores your meals. Each browser
+          (laptop vs phone) keeps its <strong>own</strong> copy in storage until you connect them.
+          <strong> To see laptop data on your phone:</strong> (1) Set up <strong>Supabase</strong> (see
+          <code>CLOUD_SYNC.md</code>), put your project URL and anon key in <code>index.html</code>, redeploy GitHub
+          Pages, then unlock with the <strong>same password</strong> on both devices — or (2) on the laptop use
+          Settings → backup file, then on the phone use <strong>Restore backup file</strong> below and unlock.
         </div>
 
         <button type="button" id="btn-show-create" class="btn btn--ghost" style="width: 100%; margin-top: 1rem" hidden>
@@ -329,6 +350,8 @@
     <script>
       window.__DIET_SUPABASE_URL__ = "";
       window.__DIET_SUPABASE_ANON_KEY__ = "";
+      /* Optional: USDA FoodData API key (free at api.data.gov) — higher rate limits than built-in DEMO_KEY */
+      window.__DIET_USDA_API_KEY__ = "";
     </script>
     <script type="module" src="js/app.js"></script>
   </body>

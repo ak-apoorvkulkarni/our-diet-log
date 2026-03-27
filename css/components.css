@@ -70,12 +70,31 @@
   margin-bottom: var(--space-md);
 }
 
+.field__label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
+}
+
+.field__label-row label {
+  margin-bottom: 0;
+}
+
 .field label {
   display: block;
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--text-secondary);
   margin-bottom: var(--space-xs);
+}
+
+.btn--sm {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
 .field input[type="text"],
