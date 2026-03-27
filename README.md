@@ -1,4 +1,4 @@
-# Our Diet Log
+# आहार Tracker
 
 **Repository:** [github.com/ak-apoorvkulkarni/our-diet-log](https://github.com/ak-apoorvkulkarni/our-diet-log)  
 **Live site (GitHub Pages):** [ak-apoorvkulkarni.github.io/our-diet-log](https://ak-apoorvkulkarni.github.io/our-diet-log/)

@@ -113,7 +113,7 @@ function initMainApp() {
       extra =
         ' · <span title="Saves go to the cloud; when you both have the app open, each other\'s changes show up within a few seconds">cloud sync + live updates</span>';
     }
-    fv.innerHTML = `Our Diet Log · <code>v${APP_VERSION}</code>${local ? " · running locally" : ""}${extra}`;
+    fv.innerHTML = `आहार Tracker · <code>v${APP_VERSION}</code>${local ? " · running locally" : ""}${extra}`;
   }
   refreshUserSelects();
   fillSettingsForm(appState);
