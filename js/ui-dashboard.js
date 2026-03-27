@@ -117,14 +117,15 @@ function updatePersonTabNames(state) {
 }
 
 export function renderWeeklyDashboard(mount, state, weekCursor) {
+  if (!mount) return;
   const scope = getDashboardScope();
   syncScopeTabs(scope);
   updatePersonTabNames(state);
 
   const u1 = state.users.find((x) => x.id === "u1");
   const u2 = state.users.find((x) => x.id === "u2");
-  const name1 = u1?.name || "Person 1";
-  const name2 = u2?.name || "Person 2";
+  const name1 = u1?.name || "Apoorv";
+  const name2 = u2?.name || "Aditi";
 
   const labelEl = document.getElementById("week-range-label");
   if (labelEl) {

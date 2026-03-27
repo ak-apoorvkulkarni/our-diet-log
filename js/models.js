@@ -3,8 +3,8 @@
  */
 
 export const DEFAULT_USERS = () => [
-  { id: "u1", name: "Me" },
-  { id: "u2", name: "Partner" },
+  { id: "u1", name: "Apoorv" },
+  { id: "u2", name: "Aditi" },
 ];
 
 export function createEmptyState() {

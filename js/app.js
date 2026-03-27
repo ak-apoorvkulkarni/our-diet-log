@@ -84,6 +84,9 @@ function renderDashboardView() {
 
 function initMainApp() {
   const shell = document.getElementById("app-shell");
+  if (!shell) {
+    throw new Error("Missing #app-shell — index.html may be incomplete.");
+  }
   shell.hidden = false;
   const fv = document.getElementById("footer-version");
   if (fv) {
@@ -97,9 +100,7 @@ function initMainApp() {
   bindLogForm(appState, passwordRef, persist, showToast);
   bindSettings(appState, passwordRef, persist, showToast, () => {
     sessionPassword = "";
-    shell.hidden = true;
-    document.getElementById("auth-screen").hidden = false;
-    document.getElementById("password-unlock").value = "";
+    location.reload();
   });
 
   document.querySelectorAll("[data-nav]").forEach((btn) => {

@@ -2,7 +2,29 @@
  * Login / first-time setup screen.
  */
 import { createEmptyState } from "./models.js";
-import { hasStoredVault, createVault, loadDecrypted } from "./storage.js";
+import {
+  hasStoredVault,
+  createVault,
+  loadDecrypted,
+  clearVault,
+  applyBackupToLocalStorage,
+} from "./storage.js";
+import { getWebCryptoBlockReason, localStorageAvailable } from "./crypto-env.js";
+
+function hideAuthOverlay(el) {
+  if (!el) return;
+  el.hidden = true;
+  el.setAttribute("aria-hidden", "true");
+  el.style.setProperty("display", "none", "important");
+}
+
+function formatUnlockError(err) {
+  if (err?.name === "OperationError" || err?.name === "InvalidCharacterError") {
+    return "Wrong password — or the saved data is damaged. Try a backup file or reset below.";
+  }
+  const msg = err?.message || String(err);
+  return msg || "Could not unlock.";
+}
 
 export function initAuthScreen({ onAuthed, showToast }) {
   const screen = document.getElementById("auth-screen");
@@ -12,8 +34,26 @@ export function initAuthScreen({ onAuthed, showToast }) {
   const btnShowUnlock = document.getElementById("btn-show-unlock");
   const errUnlock = document.getElementById("auth-error-unlock");
   const errCreate = document.getElementById("auth-error-create");
+  const cryptoBanner = document.getElementById("auth-crypto-banner");
 
   const existing = hasStoredVault();
+
+  function showEnvIssues() {
+    if (!localStorageAvailable()) {
+      if (cryptoBanner) {
+        cryptoBanner.hidden = false;
+        cryptoBanner.textContent =
+          "Browser storage is disabled or full. Allow site data for this site, then reload.";
+      }
+      return;
+    }
+    const why = getWebCryptoBlockReason();
+    if (why && cryptoBanner) {
+      cryptoBanner.hidden = false;
+      cryptoBanner.textContent = why;
+    }
+  }
+  showEnvIssues();
 
   if (existing) {
     formUnlock.hidden = false;
@@ -44,21 +84,52 @@ export function initAuthScreen({ onAuthed, showToast }) {
   formUnlock?.addEventListener("submit", async (e) => {
     e.preventDefault();
     errUnlock.textContent = "";
+    const why = getWebCryptoBlockReason();
+    if (why) {
+      errUnlock.textContent = why;
+      return;
+    }
+    if (!localStorageAvailable()) {
+      errUnlock.textContent = "Enable browser storage for this site and reload.";
+      return;
+    }
     const pwd = document.getElementById("password-unlock").value;
     if (!pwd) {
       errUnlock.textContent = "Enter your password.";
       return;
     }
+    const submitBtn = formUnlock.querySelector('button[type="submit"]');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.dataset._label = submitBtn.textContent;
+      submitBtn.textContent = "Unlocking…";
+    }
     try {
+      await new Promise((r) => setTimeout(r, 0));
       const data = await loadDecrypted(pwd);
       if (!data) {
-        errUnlock.textContent = "Could not load data.";
+        errUnlock.textContent =
+          "Could not read saved data. Restore a backup JSON, or reset and create a new log.";
         return;
       }
-      screen.hidden = true;
-      onAuthed(pwd, data);
-    } catch {
-      errUnlock.textContent = "Wrong password or corrupted data.";
+      try {
+        onAuthed(pwd, data);
+      } catch (inner) {
+        console.error(inner);
+        errUnlock.textContent =
+          "Could not start the app: " +
+          (inner?.message || String(inner)) +
+          ". Try a hard refresh. If this persists, use Reset below and restore a backup.";
+        return;
+      }
+      hideAuthOverlay(screen);
+    } catch (err) {
+      errUnlock.textContent = formatUnlockError(err);
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = submitBtn.dataset._label || "Unlock";
+      }
     }
   });
 
@@ -69,8 +140,11 @@ export function initAuthScreen({ onAuthed, showToast }) {
       const text = await file.text();
       const data = JSON.parse(text);
       if (!data.salt || !data.payload) throw new Error("Invalid backup file");
-      localStorage.setItem("diet_tracker_salt_v1", data.salt);
-      localStorage.setItem("diet_tracker_payload_v1", data.payload);
+      applyBackupToLocalStorage({
+        salt: data.salt,
+        payload: data.payload,
+        pbkdf2Iterations: data.pbkdf2Iterations,
+      });
       window.location.reload();
     } catch (err) {
       errCreate.textContent = err.message || "Could not restore.";
@@ -82,24 +156,66 @@ export function initAuthScreen({ onAuthed, showToast }) {
   formCreate?.addEventListener("submit", async (e) => {
     e.preventDefault();
     errCreate.textContent = "";
+    const why = getWebCryptoBlockReason();
+    if (why) {
+      errCreate.textContent = why;
+      return;
+    }
+    if (!localStorageAvailable()) {
+      errCreate.textContent = "Enable browser storage for this site and reload.";
+      return;
+    }
     const p1 = document.getElementById("password-new").value;
     const p2 = document.getElementById("password-new-confirm").value;
-    if (p1.length < 8) {
-      errCreate.textContent = "Use at least 8 characters.";
+    if (!p1) {
+      errCreate.textContent = "Enter a password.";
       return;
     }
     if (p1 !== p2) {
       errCreate.textContent = "Passwords do not match.";
       return;
     }
+    const createBtn = formCreate.querySelector('button[type="submit"]');
+    if (createBtn) {
+      createBtn.disabled = true;
+      createBtn.dataset._label = createBtn.textContent;
+      createBtn.textContent = "Creating…";
+    }
     try {
+      await new Promise((r) => setTimeout(r, 0));
       await createVault(p1, createEmptyState());
       const data = await loadDecrypted(p1);
-      screen.hidden = true;
       showToast("Vault created — your meals are encrypted on this device.");
-      onAuthed(p1, data);
+      try {
+        onAuthed(p1, data);
+      } catch (inner) {
+        console.error(inner);
+        errCreate.textContent =
+          "Could not start the app: " + (inner?.message || String(inner)) + ". Try a hard refresh.";
+        return;
+      }
+      hideAuthOverlay(screen);
     } catch (err) {
       errCreate.textContent = err.message || "Could not create vault.";
+    } finally {
+      if (createBtn) {
+        createBtn.disabled = false;
+        createBtn.textContent = createBtn.dataset._label || "Create encrypted log";
+      }
     }
+  });
+
+  document.getElementById("btn-auth-reset")?.addEventListener("click", () => {
+    if (
+      !confirm(
+        "Erase this device’s diet log and password vault? This cannot be undone unless you have a backup file."
+      )
+    ) {
+      return;
+    }
+    clearVault();
+    sessionStorage.removeItem("diet_week_cursor");
+    sessionStorage.removeItem("diet_dashboard_scope");
+    location.reload();
   });
 }

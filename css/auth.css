@@ -1,8 +1,24 @@
+/* Last in DOM + fixed so login stacks above #app-shell until dismissed */
 .auth-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
   min-height: 100dvh;
   display: grid;
   place-items: center;
   padding: var(--space-lg);
+  overflow-y: auto;
+  background-color: var(--bg-base);
+  background-image:
+    radial-gradient(ellipse 120% 80% at 100% -20%, rgba(63, 111, 94, 0.12), transparent),
+    radial-gradient(ellipse 80% 60% at 0% 100%, rgba(224, 122, 95, 0.08), transparent);
+}
+
+/* Ensure login actually disappears (some builds fought display:grid on .auth-screen) */
+.auth-screen[hidden] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 .auth-card {
@@ -54,9 +70,22 @@
 .auth-error {
   color: var(--coral);
   font-size: 0.875rem;
+  font-weight: 600;
   margin-top: var(--space-md);
   text-align: center;
-  min-height: 1.25rem;
+  min-height: 2rem;
+  line-height: 1.4;
+}
+
+.auth-crypto-banner {
+  margin: 0 0 var(--space-lg);
+  padding: var(--space-md);
+  border-radius: var(--radius-sm);
+  background: var(--coral-soft);
+  border: 1px solid rgba(224, 122, 95, 0.35);
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  line-height: 1.5;
 }
 
 .auth-note {

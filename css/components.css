@@ -327,7 +327,7 @@
   bottom: var(--space-lg);
   left: 50%;
   transform: translateX(-50%) translateY(120%);
-  z-index: 100;
+  z-index: 500;
   padding: var(--space-md) var(--space-lg);
   background: var(--text-primary);
   color: var(--bg-elevated);

@@ -1,7 +1,10 @@
 /**
  * Web Crypto: PBKDF2 key derivation + AES-GCM encrypt/decrypt for local meal data.
  */
-const PBKDF2_ITERATIONS = 210_000;
+/** Default for vaults created before iteration count was stored (must stay 210000). */
+export const DEFAULT_PBKDF2_ITERATIONS = 210_000;
+/** New vaults use fewer iterations for faster unlock on phones (stored next to salt). */
+export const NEW_VAULT_PBKDF2_ITERATIONS = 100_000;
 const SALT_LEN = 16;
 const IV_LEN = 12;
 
@@ -25,7 +28,7 @@ function fromBase64(b64) {
   return bytes;
 }
 
-export async function deriveKeyFromPassword(password, salt) {
+export async function deriveKeyFromPassword(password, salt, iterations = DEFAULT_PBKDF2_ITERATIONS) {
   const enc = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
@@ -38,7 +41,7 @@ export async function deriveKeyFromPassword(password, salt) {
     {
       name: "PBKDF2",
       salt,
-      iterations: PBKDF2_ITERATIONS,
+      iterations,
       hash: "SHA-256",
     },
     keyMaterial,

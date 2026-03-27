@@ -1,17 +1,19 @@
 /**
  * Settings: rename people, backup / restore vault file, lock session.
  */
+import { applyBackupToLocalStorage, getPbkdf2Iterations } from "./storage.js";
+
 export function bindSettings(state, passwordRef, persist, showToast, onLock) {
   document.getElementById("settings-user1-name")?.addEventListener("change", async (e) => {
     const u = state.users.find((x) => x.id === "u1");
-    if (u) u.name = e.target.value.trim() || "Me";
+    if (u) u.name = e.target.value.trim() || "Apoorv";
     await persist(passwordRef());
     showToast("Names saved.");
     window.dispatchEvent(new CustomEvent("diet-users-updated"));
   });
   document.getElementById("settings-user2-name")?.addEventListener("change", async (e) => {
     const u = state.users.find((x) => x.id === "u2");
-    if (u) u.name = e.target.value.trim() || "Partner";
+    if (u) u.name = e.target.value.trim() || "Aditi";
     await persist(passwordRef());
     showToast("Names saved.");
     window.dispatchEvent(new CustomEvent("diet-users-updated"));
@@ -24,7 +26,8 @@ export function bindSettings(state, passwordRef, persist, showToast, onLock) {
       showToast("Nothing to export.");
       return;
     }
-    const blob = new Blob([JSON.stringify({ version: 1, salt, payload }, null, 2)], {
+    const pbkdf2Iterations = getPbkdf2Iterations();
+    const blob = new Blob([JSON.stringify({ version: 1, salt, payload, pbkdf2Iterations }, null, 2)], {
       type: "application/json",
     });
     const a = document.createElement("a");
@@ -42,8 +45,11 @@ export function bindSettings(state, passwordRef, persist, showToast, onLock) {
     try {
       const data = JSON.parse(text);
       if (!data.salt || !data.payload) throw new Error("Invalid backup file");
-      localStorage.setItem("diet_tracker_salt_v1", data.salt);
-      localStorage.setItem("diet_tracker_payload_v1", data.payload);
+      applyBackupToLocalStorage({
+        salt: data.salt,
+        payload: data.payload,
+        pbkdf2Iterations: data.pbkdf2Iterations,
+      });
       showToast("Backup restored — unlock with your password.");
       window.location.reload();
     } catch (err) {

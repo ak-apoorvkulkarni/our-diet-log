@@ -23,6 +23,7 @@ function formatWhen(iso) {
 }
 
 export function renderMealGrid(container, state, { onEdit, userFilter }) {
+  if (!container) return;
   let list = sortMealsDesc(state.meals);
   if (userFilter && userFilter !== "all") {
     list = list.filter((m) => m.userId === userFilter);
