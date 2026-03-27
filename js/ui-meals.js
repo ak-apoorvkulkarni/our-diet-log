@@ -5,9 +5,15 @@ import { addMeal, updateMeal, deleteMeal, sortMealsDesc } from "./meals-store.js
 import { fileToCompressedDataUrl } from "./image-utils.js";
 import { guessCalories } from "./calorie-estimate.js";
 
+function escapeHtml(s) {
+  const div = document.createElement("div");
+  div.textContent = s;
+  return div.innerHTML;
+}
+
 function wireGuessCaloriesButton(
   buttonId,
-  { getTitle, getCaloriesInput, getPreviewImg, getFileInput },
+  { getTitle, getCaloriesInput, getHintEl, getPreviewImg, getFileInput },
   showToast
 ) {
   const btn = document.getElementById(buttonId);
@@ -15,6 +21,7 @@ function wireGuessCaloriesButton(
   btn.addEventListener("click", async () => {
     const titleEl = getTitle();
     const calEl = getCaloriesInput();
+    const hintEl = getHintEl?.();
     btn.disabled = true;
     const prev = btn.textContent;
     btn.textContent = "…";
@@ -26,8 +33,16 @@ function wireGuessCaloriesButton(
       });
       if (r.kcal != null) {
         calEl.value = String(r.kcal);
-        showToast(`~${r.kcal} kcal — ${r.source}. Adjust if needed.`);
+        if (hintEl && r.reason && r.source) {
+          hintEl.hidden = false;
+          hintEl.innerHTML = `<span class="cal-guess-hint__source">${escapeHtml(r.source)}</span> — ${escapeHtml(r.reason)}`;
+        }
+        showToast(`~${r.kcal} kcal · ${r.source}`);
       } else {
+        if (hintEl) {
+          hintEl.hidden = true;
+          hintEl.textContent = "";
+        }
         showToast(r.message || "Could not estimate.");
       }
     } finally {
@@ -103,12 +118,6 @@ function userName(state, userId) {
   return u ? u.name : "Unknown";
 }
 
-function escapeHtml(s) {
-  const div = document.createElement("div");
-  div.textContent = s;
-  return div.innerHTML;
-}
-
 export function bindLogForm(state, passwordRef, persist, showToast) {
   const form = document.getElementById("form-log-meal");
   const preview = document.getElementById("meal-photo-preview");
@@ -145,6 +154,7 @@ export function bindLogForm(state, passwordRef, persist, showToast) {
     {
       getTitle: () => document.getElementById("meal-title"),
       getCaloriesInput: () => document.getElementById("meal-calories"),
+      getHintEl: () => document.getElementById("meal-calories-hint"),
       getPreviewImg: () => document.querySelector("#meal-photo-preview img"),
       getFileInput: () => document.getElementById("meal-photo"),
     },
@@ -156,11 +166,27 @@ export function bindLogForm(state, passwordRef, persist, showToast) {
     {
       getTitle: () => document.getElementById("edit-title"),
       getCaloriesInput: () => document.getElementById("edit-calories"),
+      getHintEl: () => document.getElementById("edit-calories-hint"),
       getPreviewImg: () => document.querySelector("#edit-photo-preview img"),
       getFileInput: () => document.getElementById("edit-photo"),
     },
     showToast
   );
+
+  document.getElementById("meal-calories")?.addEventListener("input", () => {
+    const h = document.getElementById("meal-calories-hint");
+    if (h) {
+      h.hidden = true;
+      h.textContent = "";
+    }
+  });
+  document.getElementById("edit-calories")?.addEventListener("input", () => {
+    const h = document.getElementById("edit-calories-hint");
+    if (h) {
+      h.hidden = true;
+      h.textContent = "";
+    }
+  });
 
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -189,6 +215,11 @@ export function bindLogForm(state, passwordRef, persist, showToast) {
     form.reset();
     preview.innerHTML = "";
     pendingImage = null;
+    const mh = document.getElementById("meal-calories-hint");
+    if (mh) {
+      mh.hidden = true;
+      mh.textContent = "";
+    }
     document.querySelectorAll("[data-health-pick]").forEach((b) => b.classList.remove("is-selected"));
     document.getElementById("meal-date").value = todayISODate();
     document.getElementById("meal-time").value = nowTimeLocal();
@@ -206,6 +237,11 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
   document.getElementById("edit-date").value = toDateInput(meal.datetime);
   document.getElementById("edit-time").value = toTimeInput(meal.datetime);
   document.getElementById("edit-calories").value = meal.calories ?? "";
+  const editHint = document.getElementById("edit-calories-hint");
+  if (editHint) {
+    editHint.hidden = true;
+    editHint.textContent = "";
+  }
   document.getElementById("edit-notes").value = meal.notes || "";
   const prev = document.getElementById("edit-photo-preview");
   if (meal.imageData) {

@@ -151,13 +151,18 @@ function normalizeTitle(s) {
     .trim();
 }
 
-export function roughCaloriesFromKeywords(title) {
+/** @returns {{ kcal: number, label: string } | null} */
+export function getLocalKeywordMatchDetail(title) {
   const q = normalizeTitle(title);
   if (!q) return null;
   for (const [kw, kcal] of SORTED_KEYWORDS) {
-    if (q.includes(kw)) return kcal;
+    if (q.includes(kw)) return { kcal, label: kw };
   }
   return null;
+}
+
+export function roughCaloriesFromKeywords(title) {
+  return getLocalKeywordMatchDetail(title)?.kcal ?? null;
 }
 
 function extractEnergyFromFoodDetail(food) {
@@ -194,7 +199,14 @@ async function fetchUsdaFoodKcal(fdcId) {
   return extractEnergyFromFoodDetail(food);
 }
 
-async function fetchUsdaSearchKcal(query) {
+function truncDesc(s, max) {
+  const t = String(s || "").trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max - 1)}…`;
+}
+
+/** @returns {{ kcal: number, description: string } | null} */
+async function fetchUsdaSearchWithDetail(query) {
   const key = getUsdaKey();
   const url = `${USDA_BASE}/foods/search?api_key=${encodeURIComponent(key)}&query=${encodeURIComponent(query)}&pageSize=3&dataType=Foundation,SR Legacy,Branded`;
   const r = await fetch(url);
@@ -205,7 +217,10 @@ async function fetchUsdaSearchKcal(query) {
   for (const f of foods) {
     if (!f.fdcId) continue;
     const k = await fetchUsdaFoodKcal(f.fdcId);
-    if (k != null) return k;
+    if (k != null) {
+      const desc = (f.description || f.lowercaseDescription || "Matched food").trim();
+      return { kcal: k, description: truncDesc(desc, 100) };
+    }
   }
   return null;
 }
@@ -365,20 +380,28 @@ async function resolveImageElement(imageElement, imageFile) {
 }
 
 /**
- * @returns {{ kcal: number, source: string } | { kcal: null, message: string }}
+ * @returns {{ kcal: number, source: string, reason: string } | { kcal: null, message: string }}
  */
 export async function guessCalories({ title, imageElement, imageFile }) {
   const t = String(title || "").trim();
 
   if (t) {
-    const local = roughCaloriesFromKeywords(t);
+    const local = getLocalKeywordMatchDetail(t);
     if (local != null) {
-      return { kcal: local, source: "typical serving (local list)" };
+      return {
+        kcal: local.kcal,
+        source: "Built-in list",
+        reason: `Matched a typical serving for “${local.label}” from our local dish list.`,
+      };
     }
     try {
-      const usda = await fetchUsdaSearchKcal(t);
+      const usda = await fetchUsdaSearchWithDetail(t);
       if (usda != null) {
-        return { kcal: usda, source: "USDA FoodData (rough portion)" };
+        return {
+          kcal: usda.kcal,
+          source: "USDA FoodData Central",
+          reason: `Used energy from USDA entry “${usda.description}” (scaled to a rough meal size).`,
+        };
       }
     } catch (e) {
       console.warn("USDA lookup failed", e);
@@ -395,9 +418,11 @@ export async function guessCalories({ title, imageElement, imageFile }) {
   if (img) {
     const fromImg = await guessFromImageElement(img);
     if (fromImg) {
+      const guessLabel = fromImg.label.split(",")[0].trim();
       return {
         kcal: fromImg.kcal,
-        source: `photo guess (${fromImg.label.split(",")[0].trim()})`,
+        source: "Image classifier (MobileNet)",
+        reason: `Photo was classified as “${guessLabel}” and mapped to a rough kcal — often wrong; edit freely.`,
       };
     }
     if (t) {

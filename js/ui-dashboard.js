@@ -57,16 +57,24 @@ function kpiCard(value, label, hint) {
     </div>`;
 }
 
+/** Taller bars for small values vs week max (sqrt) + minimum visible slice when kcal &gt; 0 */
+function barFillPct(value, weekMax) {
+  if (weekMax <= 0 || value <= 0) return 0;
+  const raw = Math.sqrt(value / weekMax) * 100;
+  return Math.min(100, Math.round(Math.max(raw, 10)));
+}
+
 function renderGroupedCalories(calA, calB, labels, nameA, nameB) {
   const max = Math.max(1, ...labels.map((_, i) => Math.max(calA[i] || 0, calB[i] || 0)));
   return labels
     .map((label, i) => {
       const a = calA[i] || 0;
       const b = calB[i] || 0;
-      const ha = Math.round((a / max) * 100);
-      const hb = Math.round((b / max) * 100);
+      const ha = barFillPct(a, max);
+      const hb = barFillPct(b, max);
+      const empty = a === 0 && b === 0;
       return `
-      <div class="dash-bar-group">
+      <div class="dash-bar-group${empty ? " dash-bar-group--empty" : ""}">
         <span class="dash-bar-group__dow">${label}</span>
         <div class="dash-bar-group__tracks" role="group" aria-label="${label} calories">
           <div class="dash-bar-group__track dash-bar-group__track--a" title="${escapeHtml(nameA)}: ${a || "—"} kcal">
@@ -87,7 +95,7 @@ function renderSimpleCalories(calByDay, labels) {
   return labels
     .map((label, i) => {
       const cals = calByDay[i] || 0;
-      const pct = Math.round((cals / max) * 100);
+      const pct = barFillPct(cals, max);
       return `
       <div class="dash-hbar-row">
         <span class="dash-hbar-row__dow">${label}</span>

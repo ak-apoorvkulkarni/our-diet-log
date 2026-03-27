@@ -289,7 +289,11 @@
   }
 
   .dash-bar-group {
-    min-width: 280px;
+    min-width: min(100%, 260px);
+  }
+
+  .dash-bar-group__tracks {
+    height: 64px;
   }
 }
 
@@ -311,7 +315,7 @@
   display: flex;
   gap: 6px;
   align-items: flex-end;
-  height: 88px;
+  height: 72px;
   border-bottom: 1px solid var(--border);
   padding-bottom: 0;
 }
@@ -337,9 +341,18 @@
 
 .dash-bar-group__fill {
   width: 100%;
-  min-height: 4px;
+  min-height: 3px;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   transition: height 0.4s ease;
+}
+
+.dash-bar-group--empty .dash-bar-group__tracks {
+  opacity: 0.45;
+}
+
+.dash-bar-group--empty .dash-bar-group__fill {
+  min-height: 0;
+  opacity: 0.35;
 }
 
 .dash-bar-group__track--a .dash-bar-group__fill {
