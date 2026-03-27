@@ -84,6 +84,28 @@
 }
 
 /* —— Professional dashboard —— */
+/* Flex column + gap avoids margin-collapse so blocks never visually merge. */
+.dash-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xl);
+  align-items: stretch;
+  width: 100%;
+}
+
+.dash-stack > .dash-hero,
+.dash-stack > .dash-kpi-grid {
+  margin-bottom: 0;
+}
+
+.dash-stack > .dash-compare.card {
+  margin-bottom: 0;
+}
+
+.dash-stack > .dash-insights {
+  margin-top: 0;
+}
+
 .dashboard-scope {
   display: flex;
   flex-wrap: wrap;
@@ -210,6 +232,10 @@
   line-height: 1.45;
 }
 
+.dash-compare.card {
+  padding-bottom: var(--space-xl);
+}
+
 .dash-compare__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -244,7 +270,7 @@
 }
 
 .dash-compare__note {
-  margin: var(--space-md) 0 0;
+  margin: var(--space-lg) 0 0;
   font-size: 0.85rem;
   color: var(--text-secondary);
   font-style: italic;
@@ -414,14 +440,28 @@
 }
 
 .dash-insights {
-  margin-top: var(--space-lg);
+  margin-top: 0;
 }
 
-.dash-charts-row {
+/* Two chart cards: explicit gap (stacked + side-by-side). Higher specificity than .grid-2 alone. */
+.dash-stack .grid-2.dash-charts-row {
+  display: grid;
+  grid-template-columns: 1fr;
   align-items: stretch;
+  gap: var(--space-2xl);
+  row-gap: var(--space-2xl);
+  column-gap: var(--space-2xl);
+  width: 100%;
+  min-width: 0;
 }
 
-.dash-charts-row .card {
+@media (min-width: 900px) {
+  .dash-stack .grid-2.dash-charts-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.dash-stack .grid-2.dash-charts-row > .card {
   min-width: 0;
 }
 

@@ -4,6 +4,7 @@
 import { addMeal, updateMeal, deleteMeal, sortMealsDesc } from "./meals-store.js";
 import { fileToCompressedDataUrl } from "./image-utils.js";
 import { guessCalories } from "./calorie-estimate.js";
+import { categoryFromDateAndTimeInputs, labelForMealCategory, categoryFromLocalTime } from "./meal-category.js";
 
 function escapeHtml(s) {
   const div = document.createElement("div");
@@ -98,7 +99,9 @@ export function renderMealGrid(container, state, { onEdit, userFilter }) {
       <div class="meal-card__body">
         <h3 class="meal-card__title">${escapeHtml(m.title)}</h3>
         <div class="meal-card__meta">
-          ${escapeHtml(userName(state, m.userId))} · ${formatWhen(m.datetime)}
+          ${escapeHtml(userName(state, m.userId))} · ${escapeHtml(
+            labelForMealCategory(m.category || categoryFromLocalTime(new Date(m.datetime)))
+          )} · ${formatWhen(m.datetime)}
           ${m.calories != null ? ` · ${m.calories} kcal` : ""}
         </div>
         <div style="margin-bottom:0.5rem">${healthBadge(m.health)}</div>
@@ -188,6 +191,17 @@ export function bindLogForm(state, passwordRef, persist, showToast) {
     }
   });
 
+  const syncLogCategoryFromInputs = () => {
+    const cat = document.getElementById("meal-category");
+    if (!cat) return;
+    const date = document.getElementById("meal-date")?.value;
+    const time = document.getElementById("meal-time")?.value;
+    cat.value = categoryFromDateAndTimeInputs(date, time);
+  };
+
+  document.getElementById("meal-date")?.addEventListener("input", syncLogCategoryFromInputs);
+  document.getElementById("meal-time")?.addEventListener("input", syncLogCategoryFromInputs);
+
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const userId = document.getElementById("meal-user").value;
@@ -196,6 +210,7 @@ export function bindLogForm(state, passwordRef, persist, showToast) {
     const time = document.getElementById("meal-time").value;
     const calories = document.getElementById("meal-calories").value;
     const notes = document.getElementById("meal-notes").value;
+    const category = document.getElementById("meal-category")?.value;
     let health = null;
     const sel = document.querySelector("[data-health-pick].is-selected");
     if (sel) health = sel.getAttribute("data-health-pick");
@@ -208,6 +223,7 @@ export function bindLogForm(state, passwordRef, persist, showToast) {
       calories,
       notes,
       health,
+      category,
       imageData: pendingImage,
     });
     await persist(passwordRef());
@@ -223,6 +239,7 @@ export function bindLogForm(state, passwordRef, persist, showToast) {
     document.querySelectorAll("[data-health-pick]").forEach((b) => b.classList.remove("is-selected"));
     document.getElementById("meal-date").value = todayISODate();
     document.getElementById("meal-time").value = nowTimeLocal();
+    syncLogCategoryFromInputs();
   });
 }
 
@@ -243,6 +260,12 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
     editHint.textContent = "";
   }
   document.getElementById("edit-notes").value = meal.notes || "";
+  const editCat = document.getElementById("edit-category");
+  if (editCat) {
+    editCat.value =
+      meal.category ||
+      categoryFromDateAndTimeInputs(toDateInput(meal.datetime), toTimeInput(meal.datetime));
+  }
   const prev = document.getElementById("edit-photo-preview");
   if (meal.imageData) {
     prev.innerHTML = `<img src="${meal.imageData}" alt="" style="max-height:160px;border-radius:12px">`;
@@ -270,10 +293,22 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
   };
   fileInput.onchange = onFile;
 
+  const editDateEl = document.getElementById("edit-date");
+  const editTimeEl = document.getElementById("edit-time");
+  const syncEditCategoryFromInputs = () => {
+    const el = document.getElementById("edit-category");
+    if (!el) return;
+    el.value = categoryFromDateAndTimeInputs(editDateEl?.value, editTimeEl?.value);
+  };
+  if (editDateEl) editDateEl.oninput = syncEditCategoryFromInputs;
+  if (editTimeEl) editTimeEl.oninput = syncEditCategoryFromInputs;
+
   const close = () => {
     modal.hidden = true;
     form.onsubmit = null;
     document.getElementById("btn-delete-meal").onclick = null;
+    if (editDateEl) editDateEl.oninput = null;
+    if (editTimeEl) editTimeEl.oninput = null;
     onClose?.();
   };
 
@@ -296,6 +331,7 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
       calories: document.getElementById("edit-calories").value,
       notes: document.getElementById("edit-notes").value,
       health,
+      category: document.getElementById("edit-category")?.value,
       imageData: newImage,
     });
     await persist(passwordRef());
@@ -346,5 +382,9 @@ export function initLogDefaults() {
   const t = document.getElementById("meal-time");
   if (d && !d.value) d.value = todayISODate();
   if (t && !t.value) t.value = nowTimeLocal();
+  const cat = document.getElementById("meal-category");
+  if (cat && d && t) {
+    cat.value = categoryFromDateAndTimeInputs(d.value, t.value);
+  }
 }
 

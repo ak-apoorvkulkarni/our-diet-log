@@ -2,18 +2,28 @@
  * Meal CRUD and queries (operates on in-memory state; caller persists).
  */
 import { newMealId } from "./models.js";
+import { categoryFromLocalTime } from "./meal-category.js";
+
+function normalizeCategory(c) {
+  if (c === "breakfast" || c === "lunch" || c === "dinner" || c === "random") return c;
+  return null;
+}
 
 export function addMeal(state, meal) {
   const id = newMealId();
+  const dtIso = meal.datetime || new Date().toISOString();
   const row = {
     id,
     userId: meal.userId,
-    datetime: meal.datetime || new Date().toISOString(),
+    datetime: dtIso,
     title: (meal.title || "").trim() || "Meal",
     notes: (meal.notes || "").trim(),
     calories: meal.calories != null && meal.calories !== "" ? Number(meal.calories) : null,
     health: meal.health ?? null,
     imageData: meal.imageData || null,
+    category:
+      normalizeCategory(meal.category) ??
+      categoryFromLocalTime(new Date(dtIso)),
   };
   state.meals = [row, ...state.meals];
   return row;
@@ -37,6 +47,11 @@ export function updateMeal(state, id, patch) {
     health: patch.health !== undefined ? patch.health : cur.health,
     imageData: patch.imageData !== undefined ? patch.imageData : cur.imageData,
     datetime: patch.datetime || cur.datetime,
+    category:
+      patch.category !== undefined
+        ? normalizeCategory(patch.category) ??
+          categoryFromLocalTime(new Date(patch.datetime || cur.datetime))
+        : cur.category ?? categoryFromLocalTime(new Date(cur.datetime)),
   };
   state.meals[i] = next;
   return next;

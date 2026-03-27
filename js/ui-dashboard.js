@@ -174,6 +174,7 @@ function renderHouseholdDashboard(state, weekCursor, name1, name2) {
   const grouped = renderGroupedCalories(a1.calByDay, a2.calByDay, agg.dayLabels, name1, name2);
 
   return `
+    <div class="dash-stack">
     <div class="dash-hero">
       <p class="dash-hero__eyebrow">Weekly intelligence</p>
       <h3 class="dash-hero__title">Household overview</h3>
@@ -242,6 +243,7 @@ function renderHouseholdDashboard(state, weekCursor, name1, name2) {
         ${tips.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}
       </ul>
     </div>
+    </div>
   `;
 }
 
@@ -253,6 +255,7 @@ function renderIndividualDashboard(state, weekCursor, userId, personName) {
   const simpleBars = renderSimpleCalories(agg.calByDay, agg.dayLabels);
 
   return `
+    <div class="dash-stack">
     <div class="dash-hero dash-hero--solo">
       <p class="dash-hero__eyebrow">Individual view</p>
       <h3 class="dash-hero__title">${escapeHtml(personName)}</h3>
@@ -292,6 +295,7 @@ function renderIndividualDashboard(state, weekCursor, userId, personName) {
       <ul class="insights-list">
         ${tips.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}
       </ul>
+    </div>
     </div>
   `;
 }

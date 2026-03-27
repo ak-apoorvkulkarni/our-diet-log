@@ -112,6 +112,16 @@
                 </div>
               </div>
               <div class="field">
+                <label for="meal-category">Category</label>
+                <select id="meal-category" required>
+                  <option value="breakfast">Breakfast</option>
+                  <option value="lunch">Lunch</option>
+                  <option value="dinner">Dinner</option>
+                  <option value="random">Random meal</option>
+                </select>
+                <p class="field-hint">Picked from the time above — change if this was a different kind of meal.</p>
+              </div>
+              <div class="field">
                 <div class="field__label-row">
                   <label for="meal-calories">Calories (optional)</label>
                   <button type="button" class="btn btn--secondary btn--sm" id="btn-guess-calories">
@@ -246,7 +256,7 @@
             <label for="edit-title">What</label>
             <input id="edit-title" type="text" required />
           </div>
-          <div class="grid-2">
+            <div class="grid-2">
             <div class="field">
               <label for="edit-date">Date</label>
               <input id="edit-date" type="date" required />
@@ -255,6 +265,15 @@
               <label for="edit-time">Time</label>
               <input id="edit-time" type="time" required />
             </div>
+          </div>
+          <div class="field">
+            <label for="edit-category">Category</label>
+            <select id="edit-category" required>
+              <option value="breakfast">Breakfast</option>
+              <option value="lunch">Lunch</option>
+              <option value="dinner">Dinner</option>
+              <option value="random">Random meal</option>
+            </select>
           </div>
           <div class="field">
             <div class="field__label-row">
