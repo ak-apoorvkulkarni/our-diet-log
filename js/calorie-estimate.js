@@ -443,7 +443,7 @@ export async function guessCalories({ title, imageElement, imageFile }) {
     return {
       kcal: null,
       message:
-        "No match. Try simpler words (e.g. “rice”, “dosa”, “pizza”) or add a meal photo for a rough image guess.",
+        "No match. Try simpler words (e.g. “rice”, “dosa”, “dal”) or add a meal photo for a rough image guess.",
     };
   }
 
