@@ -35,6 +35,11 @@ export function hasStoredVault() {
 }
 
 export async function createVault(password, initialState) {
+  if (hasStoredVault()) {
+    throw new Error(
+      "This browser already has an encrypted log. Unlock with your password, or erase local data first to start fresh."
+    );
+  }
   const salt = generateSalt();
   localStorage.setItem(KEY_SALT, toBase64(salt));
   localStorage.setItem(KEY_KDF_ITERS, String(NEW_VAULT_PBKDF2_ITERATIONS));

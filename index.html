@@ -332,6 +332,13 @@
 
         <p id="auth-crypto-banner" class="auth-crypto-banner" hidden role="alert"></p>
 
+        <p id="auth-existing-banner" class="auth-existing-banner" hidden role="status">
+          <strong>This browser already has a log.</strong> Unlock with your password. To use a
+          <em>different</em> password here, export a backup from Settings first (after you unlock), then tap
+          <strong>Erase data</strong> below — creating a second log without erasing is not allowed (one vault per
+          browser).
+        </p>
+
         <form id="form-unlock" class="auth-form" hidden>
           <div class="field">
             <label for="password-unlock">Password</label>
@@ -375,7 +382,7 @@
           <p class="field-hint">After restore, unlock with the same password you used before.</p>
         </div>
         <button type="button" id="btn-auth-reset" class="btn btn--ghost" style="width: 100%; margin-top: 1rem">
-          Forgot password / erase data on this device
+          Erase data on this device (needed for a new password)
         </button>
       </div>
     </div>

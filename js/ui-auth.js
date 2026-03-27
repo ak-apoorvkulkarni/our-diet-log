@@ -36,6 +36,7 @@ export function initAuthScreen({ onAuthed, showToast }) {
   const errUnlock = document.getElementById("auth-error-unlock");
   const errCreate = document.getElementById("auth-error-create");
   const cryptoBanner = document.getElementById("auth-crypto-banner");
+  const existingBanner = document.getElementById("auth-existing-banner");
 
   const existing = hasStoredVault();
 
@@ -55,6 +56,10 @@ export function initAuthScreen({ onAuthed, showToast }) {
     }
   }
   showEnvIssues();
+
+  if (existingBanner) {
+    existingBanner.hidden = !existing;
+  }
 
   if (existing) {
     formUnlock.hidden = false;
@@ -177,6 +182,11 @@ export function initAuthScreen({ onAuthed, showToast }) {
       errCreate.textContent = "Passwords do not match.";
       return;
     }
+    if (hasStoredVault()) {
+      errCreate.textContent =
+        "This browser already has a log. Reload the page to unlock, or use Erase data below if you need a new password.";
+      return;
+    }
     const createBtn = formCreate.querySelector('button[type="submit"]');
     if (createBtn) {
       createBtn.disabled = true;
@@ -225,7 +235,7 @@ export function initAuthScreen({ onAuthed, showToast }) {
   document.getElementById("btn-auth-reset")?.addEventListener("click", () => {
     if (
       !confirm(
-        "Erase this device’s diet log and password vault? This cannot be undone unless you have a backup file."
+        "Erase this browser’s encrypted log and vault? You cannot undo this without a backup file. After this, you can create a new password on this device."
       )
     ) {
       return;

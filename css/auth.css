@@ -97,6 +97,18 @@
   line-height: 1.5;
 }
 
+.auth-existing-banner {
+  margin: 0 0 var(--space-lg);
+  padding: var(--space-md);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  border: 1px solid rgba(63, 111, 94, 0.22);
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  text-align: left;
+}
+
 .auth-note {
   margin-top: var(--space-xl);
   padding-top: var(--space-lg);
