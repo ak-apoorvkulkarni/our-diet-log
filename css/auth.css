@@ -139,6 +139,12 @@
   border: 1px solid rgba(63, 111, 94, 0.2);
 }
 
+.auth-form {
+  display: block;
+}
+
+/* Unlock vs create: visibility is `#auth-panel-unlock` / `#auth-panel-create` + `hidden` (JS + inline script). */
+
 .auth-card .field {
   margin-bottom: var(--space-lg);
 }

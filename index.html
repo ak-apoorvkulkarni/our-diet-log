@@ -342,7 +342,7 @@
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <div id="auth-screen" class="auth-screen">
-      <div class="auth-card">
+      <div id="auth-card" class="auth-card">
         <div class="auth-card__logo-wrap">
           <img
             class="auth-card__logo"
@@ -374,27 +374,53 @@
           browser).
         </p>
 
-        <form id="form-unlock" class="auth-form" hidden>
-          <div class="field">
-            <label for="password-unlock">Password</label>
-            <input id="password-unlock" type="password" autocomplete="current-password" required />
-          </div>
-          <button type="submit" class="btn btn--primary">Unlock</button>
-          <p id="auth-error-unlock" class="auth-error" role="status"></p>
-        </form>
+        <div id="auth-panel-unlock" class="auth-panel" hidden>
+          <form id="form-unlock" class="auth-form" autocomplete="on">
+            <div class="field">
+              <label for="password-unlock">Password</label>
+              <input id="password-unlock" type="password" autocomplete="current-password" required />
+            </div>
+            <button type="submit" class="btn btn--primary">Unlock</button>
+            <p id="auth-error-unlock" class="auth-error" role="status"></p>
+          </form>
+        </div>
 
-        <form id="form-create" class="auth-form" hidden>
-          <div class="field">
-            <label for="password-new">Create password</label>
-            <input id="password-new" type="password" autocomplete="new-password" required />
-          </div>
-          <div class="field">
-            <label for="password-new-confirm">Confirm password</label>
-            <input id="password-new-confirm" type="password" autocomplete="new-password" required />
-          </div>
-          <button type="submit" class="btn btn--primary">Create encrypted log</button>
-          <p id="auth-error-create" class="auth-error" role="status"></p>
-        </form>
+        <div id="auth-panel-create" class="auth-panel">
+          <form id="form-create" class="auth-form" autocomplete="on">
+            <div class="field">
+              <label for="password-new">Create password</label>
+              <input id="password-new" type="password" autocomplete="new-password" required />
+            </div>
+            <div class="field">
+              <label for="password-new-confirm">Confirm password</label>
+              <input id="password-new-confirm" type="password" autocomplete="new-password" required />
+            </div>
+            <button type="submit" class="btn btn--primary">Create encrypted log</button>
+            <p id="auth-error-create" class="auth-error" role="status"></p>
+          </form>
+        </div>
+        <script>
+          (function () {
+            try {
+              var s = localStorage.getItem("diet_tracker_salt_v1");
+              var p = localStorage.getItem("diet_tracker_payload_v1");
+              var hasVault = !!(s && p);
+              var pu = document.getElementById("auth-panel-unlock");
+              var pc = document.getElementById("auth-panel-create");
+              if (pu && pc) {
+                pu.hidden = !hasVault;
+                pc.hidden = hasVault;
+              }
+            } catch (e) {}
+          })();
+        </script>
+
+        <button type="button" id="btn-show-create" class="btn btn--ghost auth-toggle" style="width: 100%; margin-top: 1rem" hidden>
+          First time? Create password
+        </button>
+        <button type="button" id="btn-show-unlock" class="btn btn--ghost auth-toggle" style="width: 100%; margin-top: 0.5rem">
+          Already have a log — unlock
+        </button>
 
         <div class="auth-note">
           <strong>Privacy:</strong> This is a static site — there is no server that stores your meals. Each browser
@@ -404,13 +430,6 @@
           Pages, then unlock with the <strong>same password</strong> on both devices — or (2) on the laptop use
           Settings → backup file, then on the phone use <strong>Restore backup file</strong> below and unlock.
         </div>
-
-        <button type="button" id="btn-show-create" class="btn btn--ghost" style="width: 100%; margin-top: 1rem" hidden>
-          First time? Create password
-        </button>
-        <button type="button" id="btn-show-unlock" class="btn btn--ghost" style="width: 100%; margin-top: 0.5rem" hidden>
-          Already have a log — unlock
-        </button>
         <div class="field" style="margin-top: 1.25rem">
           <label for="auth-restore-file">New phone? Restore backup file</label>
           <input id="auth-restore-file" type="file" accept="application/json,.json" />

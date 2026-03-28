@@ -27,8 +27,20 @@ function formatUnlockError(err) {
   return msg || "Could not unlock.";
 }
 
+/** Browsers keep separate vaults per site address (localhost vs github.io, etc.). */
+function storageOriginHint() {
+  if (typeof location === "undefined") return "";
+  const h = location.hostname;
+  if (h === "localhost" || h === "127.0.0.1") {
+    return " If you recorded meals on the published site (GitHub Pages), that vault is not stored here — use “Restore backup file” with a JSON from Settings → Download backup on the other address, then unlock.";
+  }
+  return "";
+}
+
 export function initAuthScreen({ onAuthed, showToast }) {
   const screen = document.getElementById("auth-screen");
+  const panelUnlock = document.getElementById("auth-panel-unlock");
+  const panelCreate = document.getElementById("auth-panel-create");
   const formUnlock = document.getElementById("form-unlock");
   const formCreate = document.getElementById("form-create");
   const btnShowCreate = document.getElementById("btn-show-create");
@@ -67,30 +79,42 @@ export function initAuthScreen({ onAuthed, showToast }) {
     existingBanner.hidden = !existing;
   }
 
+  /** One visible panel at a time — native `hidden` on wrappers (reliable across browsers). */
+  function applyAuthMode(mode) {
+    const showUnlock = mode === "unlock";
+    if (panelUnlock) panelUnlock.hidden = !showUnlock;
+    if (panelCreate) panelCreate.hidden = showUnlock;
+    if (btnShowCreate) btnShowCreate.hidden = !showUnlock;
+    if (btnShowUnlock) btnShowUnlock.hidden = showUnlock;
+  }
+
   if (existing) {
-    formUnlock.hidden = false;
-    formCreate.hidden = true;
+    applyAuthMode("unlock");
     if (btnShowCreate) btnShowCreate.hidden = true;
     if (btnShowUnlock) btnShowUnlock.hidden = true;
   } else {
-    formUnlock.hidden = true;
-    formCreate.hidden = false;
+    applyAuthMode("create");
     if (btnShowCreate) btnShowCreate.hidden = true;
-    if (btnShowUnlock) btnShowUnlock.hidden = true;
+    if (btnShowUnlock) btnShowUnlock.hidden = false;
   }
 
-  btnShowCreate?.addEventListener("click", () => {
-    formUnlock.hidden = true;
-    formCreate.hidden = false;
-    errUnlock.textContent = "";
-    errCreate.textContent = "";
-  });
-
-  btnShowUnlock?.addEventListener("click", () => {
-    formCreate.hidden = true;
-    formUnlock.hidden = false;
-    errUnlock.textContent = "";
-    errCreate.textContent = "";
+  screen.addEventListener("click", (e) => {
+    const unlockToggle = e.target.closest("#btn-show-unlock");
+    const createToggle = e.target.closest("#btn-show-create");
+    if (unlockToggle) {
+      e.preventDefault();
+      applyAuthMode("unlock");
+      errUnlock.textContent = "";
+      errCreate.textContent = "";
+      requestAnimationFrame(() => document.getElementById("password-unlock")?.focus());
+    }
+    if (createToggle) {
+      e.preventDefault();
+      applyAuthMode("create");
+      errUnlock.textContent = "";
+      errCreate.textContent = "";
+      requestAnimationFrame(() => document.getElementById("password-new")?.focus());
+    }
   });
 
   formUnlock?.addEventListener("submit", async (e) => {
@@ -122,7 +146,8 @@ export function initAuthScreen({ onAuthed, showToast }) {
       const data = await loadDecrypted(pwd);
       if (!data) {
         errUnlock.textContent =
-          "Could not read saved data. Restore a backup JSON, or reset and create a new log.";
+          "Could not read saved data. Restore a backup JSON, or reset and create a new log." +
+          storageOriginHint();
         return;
       }
       try {
@@ -137,7 +162,7 @@ export function initAuthScreen({ onAuthed, showToast }) {
       }
       hideAuthOverlay(screen);
     } catch (err) {
-      errUnlock.textContent = formatUnlockError(err);
+      errUnlock.textContent = formatUnlockError(err) + storageOriginHint();
     } finally {
       if (submitBtn) {
         submitBtn.disabled = false;
