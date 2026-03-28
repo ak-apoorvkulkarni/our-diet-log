@@ -16,12 +16,31 @@
 }
 
 .btn--primary {
-  background: var(--accent);
+  background: linear-gradient(155deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 72%, var(--sage)) 100%);
   color: white;
+  box-shadow: 0 2px 14px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 .btn--primary:hover {
-  background: var(--accent-hover);
+  background: linear-gradient(155deg, var(--accent-hover) 0%, color-mix(in srgb, var(--accent-hover) 75%, var(--sage)) 100%);
+  box-shadow: 0 4px 20px color-mix(in srgb, var(--accent) 42%, transparent);
+  transform: translateY(-1px);
+}
+
+@media (prefers-color-scheme: dark) {
+  .btn--primary {
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.4);
+  }
+
+  .btn--primary:hover {
+    box-shadow: 0 5px 22px rgba(0, 0, 0, 0.5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn--primary:hover {
+    transform: none;
+  }
 }
 
 .btn--secondary {
@@ -51,11 +70,27 @@
 }
 
 .card {
-  background: var(--bg-elevated);
+  background: linear-gradient(
+    165deg,
+    var(--bg-elevated) 0%,
+    color-mix(in srgb, var(--bg-elevated) 94%, var(--accent-soft)) 100%
+  );
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-md);
   padding: var(--space-lg);
+  transition: box-shadow var(--transition-slow), transform var(--transition), border-color var(--transition);
+}
+
+.card:not(.modal__panel):hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card:not(.modal__panel):hover {
+    transform: none;
+  }
 }
 
 .card__title {
@@ -179,12 +214,23 @@
   background: var(--bg-base);
   font-size: 0.875rem;
   font-weight: 500;
-  transition: background var(--transition), border-color var(--transition), color var(--transition);
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    color var(--transition),
+    transform 0.15s ease;
 }
 
 .chip:hover {
   border-color: var(--accent);
   color: var(--accent);
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chip:hover {
+    transform: none;
+  }
 }
 
 .chip.is-selected {
@@ -221,14 +267,24 @@
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--border);
-  background: var(--bg-elevated);
+  background: linear-gradient(180deg, var(--bg-elevated) 0%, color-mix(in srgb, var(--bg-elevated) 96%, var(--sage-soft)) 100%);
   box-shadow: var(--shadow-sm);
-  transition: box-shadow var(--transition), transform var(--transition);
+  transition:
+    box-shadow var(--transition-slow),
+    transform var(--transition),
+    border-color var(--transition);
 }
 
 .meal-card:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meal-card:hover {
+    transform: translateY(-1px);
+  }
 }
 
 .meal-card__img-wrap {

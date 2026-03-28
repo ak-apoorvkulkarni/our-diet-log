@@ -6,6 +6,8 @@
   display: flex;
   flex-direction: row;
   align-items: stretch;
+  position: relative;
+  z-index: 1;
 }
 
 .sidebar-backdrop {
@@ -34,7 +36,7 @@
   padding: var(--space-lg) var(--space-md);
   padding-top: calc(var(--space-lg) + env(safe-area-inset-top, 0px));
   padding-left: calc(var(--space-md) + env(safe-area-inset-left, 0px));
-  background: var(--bg-elevated);
+  background: linear-gradient(175deg, var(--bg-elevated) 0%, color-mix(in srgb, var(--bg-elevated) 92%, var(--accent-soft)) 55%, var(--bg-muted) 100%);
   border-right: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
   z-index: 200;
@@ -100,19 +102,31 @@
   font-size: 0.9375rem;
   text-align: left;
   cursor: pointer;
-  transition: background var(--transition), color var(--transition);
+  transition:
+    background var(--transition),
+    color var(--transition),
+    transform var(--transition),
+    box-shadow var(--transition);
   -webkit-tap-highlight-color: transparent;
 }
 
 .app-sidebar__link:hover {
   background: var(--bg-muted);
   color: var(--text-primary);
+  transform: translateX(3px);
 }
 
 .app-sidebar__link[aria-current="true"] {
-  background: var(--accent-soft);
+  background: linear-gradient(90deg, var(--accent-soft), color-mix(in srgb, var(--accent-soft) 65%, transparent));
   color: var(--accent);
   box-shadow: inset 0 0 0 1px rgba(63, 111, 94, 0.2);
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar__link:hover {
+    transform: none;
+  }
 }
 
 .app-body {
@@ -131,9 +145,9 @@
   padding-top: calc(var(--space-sm) + env(safe-area-inset-top, 0px));
   padding-left: calc(var(--space-md) + env(safe-area-inset-left, 0px));
   padding-right: calc(var(--space-md) + env(safe-area-inset-right, 0px));
-  background: var(--surface-glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: linear-gradient(180deg, var(--surface-glass) 0%, color-mix(in srgb, var(--surface-glass) 88%, var(--accent-soft)) 100%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
@@ -212,11 +226,30 @@
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view {
+    animation: none;
+  }
+
+  .view.is-active {
+    animation: fadeInReduced 0.2s ease;
+  }
+
+  @keyframes fadeInReduced {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 }
 

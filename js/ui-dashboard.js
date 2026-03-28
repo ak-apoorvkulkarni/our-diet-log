@@ -194,10 +194,8 @@ function renderHouseholdDashboard(state, weekCursor, name1, name2) {
 
   return `
     <div class="dash-stack">
-    <div class="dash-hero">
-      <p class="dash-hero__eyebrow">Weekly intelligence</p>
-      <h3 class="dash-hero__title">Household overview</h3>
-      <p class="dash-hero__sub">Combined nutrition and balance across both people.</p>
+    <div class="dash-add-meal">
+      <button type="button" class="btn btn--primary dash-add-meal__btn" data-nav="log" aria-label="Add a new meal to your log">Add New Meal</button>
     </div>
 
     <div class="dash-kpi-grid">
@@ -242,7 +240,7 @@ function renderHouseholdDashboard(state, weekCursor, name1, name2) {
         <div class="dash-grouped-wrap">${grouped}</div>
       </div>
       <div class="card">
-        <h4 class="dash-section-title">Health mix (rated)</h4>
+        <h4 class="dash-section-title">Health mix</h4>
         <p class="dash-section-lead">Household totals for meals with a rating.</p>
         <div class="donut-wrap">
           <div class="donut donut--lg" style="${donutGradient(agg.health, agg.rated)}" role="img" aria-label="Health distribution"></div>
