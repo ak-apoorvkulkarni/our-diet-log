@@ -38,7 +38,8 @@ function storageOriginHint() {
 }
 
 export function initAuthScreen({ onAuthed, showToast }) {
-  const screen = document.getElementById("auth-screen");
+  /** Not named `screen` — that shadows `window.screen` (Screen) in some environments. */
+  const authScreenEl = document.getElementById("auth-screen");
   const panelUnlock = document.getElementById("auth-panel-unlock");
   const panelCreate = document.getElementById("auth-panel-create");
   const formUnlock = document.getElementById("form-unlock");
@@ -98,24 +99,22 @@ export function initAuthScreen({ onAuthed, showToast }) {
     if (btnShowUnlock) btnShowUnlock.hidden = false;
   }
 
-  screen.addEventListener("click", (e) => {
-    const unlockToggle = e.target.closest("#btn-show-unlock");
-    const createToggle = e.target.closest("#btn-show-create");
-    if (unlockToggle) {
-      e.preventDefault();
-      applyAuthMode("unlock");
-      errUnlock.textContent = "";
-      errCreate.textContent = "";
-      requestAnimationFrame(() => document.getElementById("password-unlock")?.focus());
-    }
-    if (createToggle) {
-      e.preventDefault();
-      applyAuthMode("create");
-      errUnlock.textContent = "";
-      errCreate.textContent = "";
-      requestAnimationFrame(() => document.getElementById("password-new")?.focus());
-    }
-  });
+  function onToggleUnlock(e) {
+    e.preventDefault();
+    applyAuthMode("unlock");
+    if (errUnlock) errUnlock.textContent = "";
+    if (errCreate) errCreate.textContent = "";
+    requestAnimationFrame(() => document.getElementById("password-unlock")?.focus());
+  }
+  function onToggleCreate(e) {
+    e.preventDefault();
+    applyAuthMode("create");
+    if (errUnlock) errUnlock.textContent = "";
+    if (errCreate) errCreate.textContent = "";
+    requestAnimationFrame(() => document.getElementById("password-new")?.focus());
+  }
+  btnShowUnlock?.addEventListener("click", onToggleUnlock);
+  btnShowCreate?.addEventListener("click", onToggleCreate);
 
   formUnlock?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -160,7 +159,7 @@ export function initAuthScreen({ onAuthed, showToast }) {
           ". Try a hard refresh. If this persists, use Reset below and restore a backup.";
         return;
       }
-      hideAuthOverlay(screen);
+      hideAuthOverlay(authScreenEl);
     } catch (err) {
       errUnlock.textContent = formatUnlockError(err) + storageOriginHint();
     } finally {
@@ -238,7 +237,7 @@ export function initAuthScreen({ onAuthed, showToast }) {
             "Could not start the app: " + (inner?.message || String(inner)) + ". Try a hard refresh.";
           return;
         }
-        hideAuthOverlay(screen);
+        hideAuthOverlay(authScreenEl);
         return;
       }
       await createVault(p1, createEmptyState());
@@ -252,7 +251,7 @@ export function initAuthScreen({ onAuthed, showToast }) {
           "Could not start the app: " + (inner?.message || String(inner)) + ". Try a hard refresh.";
         return;
       }
-      hideAuthOverlay(screen);
+      hideAuthOverlay(authScreenEl);
     } catch (err) {
       errCreate.textContent = err.message || "Could not create vault.";
     } finally {
