@@ -5,7 +5,15 @@ import { newMealId } from "./models.js";
 import { categoryFromLocalTime } from "./meal-category.js";
 
 function normalizeCategory(c) {
-  if (c === "breakfast" || c === "lunch" || c === "dinner" || c === "random") return c;
+  if (
+    c === "breakfast" ||
+    c === "lunch" ||
+    c === "afternoon_snacks" ||
+    c === "dinner" ||
+    c === "evening_snacks" ||
+    c === "random"
+  )
+    return c;
   return null;
 }
 

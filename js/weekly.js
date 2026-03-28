@@ -110,7 +110,7 @@ export function buildInsights(agg, opts = {}) {
   const unrated = health.unrated;
   if (unrated > 0) {
     tips.push(
-      `${unrated} meal${unrated > 1 ? "s" : ""} still unrated — add healthy / okay / unhealthy to sharpen your overview.`
+      `${unrated} meal${unrated > 1 ? "s" : ""} still unrated — add healthy / neutral / unhealthy to sharpen your overview.`
     );
   }
   if (rated > 0) {

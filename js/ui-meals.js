@@ -4,7 +4,12 @@
 import { addMeal, updateMeal, deleteMeal, sortMealsDesc } from "./meals-store.js";
 import { fileToCompressedDataUrl } from "./image-utils.js";
 import { guessCalories } from "./calorie-estimate.js";
-import { categoryFromDateAndTimeInputs, labelForMealCategory, categoryFromLocalTime } from "./meal-category.js";
+import {
+  categoryFromDateAndTimeInputs,
+  coerceMealCategorySelect,
+  labelForMealCategory,
+  categoryFromLocalTime,
+} from "./meal-category.js";
 
 function escapeHtml(s) {
   const div = document.createElement("div");
@@ -55,7 +60,7 @@ function wireGuessCaloriesButton(
 
 function healthBadge(h) {
   if (h === "healthy") return '<span class="badge badge--healthy">Healthy</span>';
-  if (h === "okay") return '<span class="badge badge--okay">Okay</span>';
+  if (h === "okay") return '<span class="badge badge--okay">Neutral</span>';
   if (h === "unhealthy") return '<span class="badge badge--unhealthy">Unhealthy</span>';
   return '<span class="badge badge--pending">Not rated</span>';
 }
@@ -214,6 +219,10 @@ export function bindLogForm(state, passwordRef, persist, showToast) {
     let health = null;
     const sel = document.querySelector("[data-health-pick].is-selected");
     if (sel) health = sel.getAttribute("data-health-pick");
+    if (!health) {
+      showToast("Choose Healthy, Neutral, or Unhealthy.");
+      return;
+    }
 
     const dt = date && time ? new Date(`${date}T${time}`) : new Date();
     addMeal(state, {
@@ -244,15 +253,17 @@ export function bindLogForm(state, passwordRef, persist, showToast) {
 }
 
 export function openEditModal(state, mealId, passwordRef, persist, showToast, onClose) {
-  const meal = state.meals.find((m) => m.id === mealId);
+  const meal = state.meals.find((m) => m.id === mealId || String(m.id) === String(mealId));
   if (!meal) return;
   const modal = document.getElementById("modal-edit");
   const form = document.getElementById("form-edit-meal");
+  const dateVal = safeDateInputForEdit(meal.datetime);
+  const timeVal = safeTimeInputForEdit(meal.datetime);
   document.getElementById("edit-meal-id").value = meal.id;
   document.getElementById("edit-user").value = meal.userId;
   document.getElementById("edit-title").value = meal.title;
-  document.getElementById("edit-date").value = toDateInput(meal.datetime);
-  document.getElementById("edit-time").value = toTimeInput(meal.datetime);
+  document.getElementById("edit-date").value = dateVal;
+  document.getElementById("edit-time").value = timeVal;
   document.getElementById("edit-calories").value = meal.calories ?? "";
   const editHint = document.getElementById("edit-calories-hint");
   if (editHint) {
@@ -262,9 +273,7 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
   document.getElementById("edit-notes").value = meal.notes || "";
   const editCat = document.getElementById("edit-category");
   if (editCat) {
-    editCat.value =
-      meal.category ||
-      categoryFromDateAndTimeInputs(toDateInput(meal.datetime), toTimeInput(meal.datetime));
+    editCat.value = coerceMealCategorySelect(meal.category, dateVal, timeVal);
   }
   const prev = document.getElementById("edit-photo-preview");
   if (meal.imageData) {
@@ -273,7 +282,7 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
     prev.innerHTML = "";
   }
 
-  document.querySelectorAll("[data-edit-health]").forEach((btn) => {
+  form.querySelectorAll("[data-edit-health]").forEach((btn) => {
     btn.classList.toggle("is-selected", btn.getAttribute("data-edit-health") === meal.health);
   });
 
@@ -317,23 +326,40 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
   form.onsubmit = async (e) => {
     e.preventDefault();
     let health = null;
-    const hSel = document.querySelector("[data-edit-health].is-selected");
+    const hSel = form.querySelector("[data-edit-health].is-selected");
     if (hSel) health = hSel.getAttribute("data-edit-health");
+    if (!health) {
+      showToast("Choose Healthy, Neutral, or Unhealthy.");
+      return;
+    }
 
     const date = document.getElementById("edit-date").value;
     const time = document.getElementById("edit-time").value;
-    const dt = date && time ? new Date(`${date}T${time}`).toISOString() : meal.datetime;
+    let dt = meal.datetime;
+    if (date && time) {
+      const parsed = new Date(`${date}T${time}`);
+      if (Number.isNaN(parsed.getTime())) {
+        showToast("Invalid date or time — check the fields and try again.");
+        return;
+      }
+      dt = parsed.toISOString();
+    }
 
-    updateMeal(state, meal.id, {
+    const updated = updateMeal(state, meal.id, {
       userId: document.getElementById("edit-user").value,
       title: document.getElementById("edit-title").value,
       datetime: dt,
       calories: document.getElementById("edit-calories").value,
       notes: document.getElementById("edit-notes").value,
       health,
-      category: document.getElementById("edit-category")?.value,
+      category: coerceMealCategorySelect(document.getElementById("edit-category")?.value, date, time),
       imageData: newImage,
     });
+    if (!updated) {
+      showToast("That meal is no longer in your log — close and refresh the list.");
+      close();
+      return;
+    }
     await persist(passwordRef());
     showToast("Meal updated.");
     close();
@@ -347,9 +373,9 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
     close();
   };
 
-  document.querySelectorAll("[data-edit-health]").forEach((btn) => {
+  form.querySelectorAll("[data-edit-health]").forEach((btn) => {
     btn.onclick = () => {
-      document.querySelectorAll("[data-edit-health]").forEach((b) => b.classList.remove("is-selected"));
+      form.querySelectorAll("[data-edit-health]").forEach((b) => b.classList.remove("is-selected"));
       btn.classList.add("is-selected");
     };
   });
@@ -368,13 +394,26 @@ function nowTimeLocal() {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-function toDateInput(iso) {
-  return iso.slice(0, 10);
+/** Avoid invalid <input type="date|time"> values (e.g. NaN:NaN) that block form submit. */
+function safeDateInputForEdit(iso) {
+  if (iso == null || iso === "") return todayISODate();
+  const s = String(iso);
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return todayISODate();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
-function toTimeInput(iso) {
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+function safeTimeInputForEdit(iso) {
+  if (iso == null || iso === "") return nowTimeLocal();
+  const d = new Date(String(iso));
+  if (Number.isNaN(d.getTime())) return nowTimeLocal();
+  const hh = d.getHours();
+  const mm = d.getMinutes();
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return nowTimeLocal();
+  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
 }
 
 export function initLogDefaults() {

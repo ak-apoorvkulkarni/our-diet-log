@@ -116,7 +116,9 @@
                 <select id="meal-category" required>
                   <option value="breakfast">Breakfast</option>
                   <option value="lunch">Lunch</option>
+                  <option value="afternoon_snacks">Afternoon snacks</option>
                   <option value="dinner">Dinner</option>
+                  <option value="evening_snacks">Evening snacks</option>
                   <option value="random">Random meal</option>
                 </select>
                 <p class="field-hint">Picked from the time above — change if this was a different kind of meal.</p>
@@ -133,10 +135,16 @@
                 <p id="meal-calories-hint" class="cal-guess-hint" hidden></p>
               </div>
               <div class="field">
-                <span id="health-label">Health rating (optional)</span>
-                <div class="chip-row" role="group" aria-labelledby="health-label" style="margin-top: 0.5rem">
+                <span id="health-label">Rate your meal</span>
+                <div
+                  class="chip-row"
+                  role="group"
+                  aria-labelledby="health-label"
+                  aria-required="true"
+                  style="margin-top: 0.5rem"
+                >
                   <button type="button" class="chip chip--healthy" data-health-pick="healthy">Healthy</button>
-                  <button type="button" class="chip chip--okay" data-health-pick="okay">Okay</button>
+                  <button type="button" class="chip chip--okay" data-health-pick="okay">Neutral</button>
                   <button type="button" class="chip chip--unhealthy" data-health-pick="unhealthy">Unhealthy</button>
                 </div>
               </div>
@@ -284,7 +292,9 @@
             <select id="edit-category" required>
               <option value="breakfast">Breakfast</option>
               <option value="lunch">Lunch</option>
+              <option value="afternoon_snacks">Afternoon snacks</option>
               <option value="dinner">Dinner</option>
+              <option value="evening_snacks">Evening snacks</option>
               <option value="random">Random meal</option>
             </select>
           </div>
@@ -299,10 +309,16 @@
             <p id="edit-calories-hint" class="cal-guess-hint" hidden></p>
           </div>
           <div class="field">
-            <span id="edit-health-label">Health</span>
-            <div class="chip-row" role="group" aria-labelledby="edit-health-label" style="margin-top: 0.5rem">
+            <span id="edit-health-label">Rate your meal</span>
+            <div
+              class="chip-row"
+              role="group"
+              aria-labelledby="edit-health-label"
+              aria-required="true"
+              style="margin-top: 0.5rem"
+            >
               <button type="button" class="chip chip--healthy" data-edit-health="healthy">Healthy</button>
-              <button type="button" class="chip chip--okay" data-edit-health="okay">Okay</button>
+              <button type="button" class="chip chip--okay" data-edit-health="okay">Neutral</button>
               <button type="button" class="chip chip--unhealthy" data-edit-health="unhealthy">Unhealthy</button>
             </div>
           </div>

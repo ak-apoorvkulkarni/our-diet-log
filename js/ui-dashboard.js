@@ -57,6 +57,25 @@ function kpiCard(value, label, hint) {
     </div>`;
 }
 
+const WELLNESS_SCORE_HELP =
+  "This number is for the selected week only. It uses meals you rated Healthy, Neutral, or Unhealthy — unrated meals are ignored. Each rated meal adds points (Healthy 100, Neutral 55, Unhealthy 20), and the score is the average, rounded to 0–100. If nothing was rated this week, you see a dash.";
+
+function wellnessKpiCard(value) {
+  const v = value != null ? escapeHtml(String(value)) : "—";
+  return `
+    <div class="dash-kpi dash-kpi--wellness">
+      <details class="dash-kpi__info">
+        <summary class="dash-kpi__info-btn" title="About wellness score" aria-label="About wellness score">
+          <span class="dash-kpi__info-icon" aria-hidden="true">i</span>
+        </summary>
+        <p class="dash-kpi__info-popover">${escapeHtml(WELLNESS_SCORE_HELP)}</p>
+      </details>
+      <div class="dash-kpi__value">${v}</div>
+      <div class="dash-kpi__label">Wellness score</div>
+      <div class="dash-kpi__hint">0–100 from ratings</div>
+    </div>`;
+}
+
 /** Taller bars for small values vs week max (sqrt) + minimum visible slice when kcal &gt; 0 */
 function barFillPct(value, weekMax) {
   if (weekMax <= 0 || value <= 0) return 0;
@@ -185,7 +204,7 @@ function renderHouseholdDashboard(state, weekCursor, name1, name2) {
       ${kpiCard(agg.totalMeals, "Meals logged", "household total")}
       ${kpiCard(agg.caloriesSum || "—", "Total kcal tracked", "with calories entered")}
       ${kpiCard(agg.avgCalories ?? "—", "Avg kcal / meal", "where known")}
-      ${kpiCard(ws != null ? `${ws}` : "—", "Wellness score", "0–100 from ratings")}
+      ${wellnessKpiCard(ws)}
     </div>
 
     <div class="dash-compare card">
@@ -230,7 +249,7 @@ function renderHouseholdDashboard(state, weekCursor, name1, name2) {
         </div>
         <div class="donut-legend">
           <span><i class="legend-healthy"></i> Healthy ${agg.health.healthy}</span>
-          <span><i class="legend-okay"></i> Okay ${agg.health.okay}</span>
+          <span><i class="legend-okay"></i> Neutral ${agg.health.okay}</span>
           <span><i class="legend-unhealthy"></i> Unhealthy ${agg.health.unhealthy}</span>
           <span><i class="legend-none"></i> Not rated ${agg.health.unrated}</span>
         </div>
@@ -266,7 +285,7 @@ function renderIndividualDashboard(state, weekCursor, userId, personName) {
       ${kpiCard(agg.totalMeals, "Meals logged", "this week")}
       ${kpiCard(agg.caloriesSum || "—", "Total kcal", "tracked")}
       ${kpiCard(agg.avgCalories ?? "—", "Avg kcal / meal", "where known")}
-      ${kpiCard(ws != null ? `${ws}` : "—", "Wellness score", "0–100 from ratings")}
+      ${wellnessKpiCard(ws)}
     </div>
 
     <div class="grid-2 dash-charts-row">
@@ -283,7 +302,7 @@ function renderIndividualDashboard(state, weekCursor, userId, personName) {
         </div>
         <div class="donut-legend">
           <span><i class="legend-healthy"></i> Healthy ${agg.health.healthy}</span>
-          <span><i class="legend-okay"></i> Okay ${agg.health.okay}</span>
+          <span><i class="legend-okay"></i> Neutral ${agg.health.okay}</span>
           <span><i class="legend-unhealthy"></i> Unhealthy ${agg.health.unhealthy}</span>
           <span><i class="legend-none"></i> Not rated ${agg.health.unrated}</span>
         </div>
