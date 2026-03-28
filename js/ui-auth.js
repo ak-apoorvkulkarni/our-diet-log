@@ -57,6 +57,12 @@ export function initAuthScreen({ onAuthed, showToast }) {
   }
   showEnvIssues();
 
+  const localhostHint = document.getElementById("auth-localhost-hint");
+  if (localhostHint && typeof location !== "undefined") {
+    const h = location.hostname;
+    if (h === "localhost" || h === "127.0.0.1") localhostHint.hidden = false;
+  }
+
   if (existingBanner) {
     existingBanner.hidden = !existing;
   }

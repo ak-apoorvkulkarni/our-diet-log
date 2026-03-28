@@ -207,6 +207,33 @@ export function bindLogForm(state, passwordRef, persist, showToast) {
   document.getElementById("meal-date")?.addEventListener("input", syncLogCategoryFromInputs);
   document.getElementById("meal-time")?.addEventListener("input", syncLogCategoryFromInputs);
 
+  function prepareNewMealEntry() {
+    pendingImage = null;
+    if (preview) preview.innerHTML = "";
+    if (fileInput) fileInput.value = "";
+    document.getElementById("meal-title")?.value = "";
+    document.getElementById("meal-calories")?.value = "";
+    document.getElementById("meal-notes")?.value = "";
+    const d = document.getElementById("meal-date");
+    const t = document.getElementById("meal-time");
+    if (d) d.value = todayISODate();
+    if (t) t.value = nowTimeLocal();
+    syncLogCategoryFromInputs();
+    document.querySelectorAll("[data-health-pick]").forEach((b) => b.classList.remove("is-selected"));
+    const mh = document.getElementById("meal-calories-hint");
+    if (mh) {
+      mh.hidden = true;
+      mh.textContent = "";
+    }
+  }
+
+  window.addEventListener("diet-open-new-meal", () => {
+    prepareNewMealEntry();
+    requestAnimationFrame(() => {
+      document.getElementById("meal-title")?.focus();
+    });
+  });
+
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const userId = document.getElementById("meal-user").value;

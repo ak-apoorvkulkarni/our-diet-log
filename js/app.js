@@ -184,15 +184,19 @@ function initMainApp() {
 
   bindMobileSidebar();
 
-  document.querySelectorAll("[data-nav]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const id = btn.getAttribute("data-nav");
-      setView(id);
-      if (id === "meals") renderMealsView();
-      if (id === "dashboard") renderDashboardView();
-      if (id === "settings") fillSettingsForm(appState);
-      closeMobileSidebarIfNeeded();
-    });
+  shell.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-nav]");
+    if (!btn || !shell.contains(btn)) return;
+    const id = btn.getAttribute("data-nav");
+    if (!id) return;
+    setView(id);
+    if (id === "meals") renderMealsView();
+    if (id === "dashboard") renderDashboardView();
+    if (id === "settings") fillSettingsForm(appState);
+    if (id === "log" && btn.getAttribute("data-new-meal") === "true") {
+      window.dispatchEvent(new CustomEvent("diet-open-new-meal"));
+    }
+    closeMobileSidebarIfNeeded();
   });
 
   document.getElementById("filter-user")?.addEventListener("change", renderMealsView);

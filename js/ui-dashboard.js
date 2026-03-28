@@ -195,7 +195,7 @@ function renderHouseholdDashboard(state, weekCursor, name1, name2) {
   return `
     <div class="dash-stack">
     <div class="dash-add-meal">
-      <button type="button" class="btn btn--primary dash-add-meal__btn" data-nav="log" aria-label="Add a new meal to your log">Add New Meal</button>
+      <button type="button" class="btn btn--primary dash-add-meal__btn" data-nav="log" data-new-meal="true" aria-label="Add a new meal to your log">Add New Meal</button>
     </div>
 
     <div class="dash-kpi-grid">
