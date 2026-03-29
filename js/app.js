@@ -3,7 +3,7 @@
  */
 import { ensureStateShape } from "./models.js";
 import { saveEncrypted } from "./storage.js";
-import { APP_VERSION } from "./version.js";
+import { APP_VERSION, DEVELOPER_NAME, DEVELOPER_SITE } from "./version.js";
 import { initAuthScreen } from "./ui-auth.js";
 import {
   renderMealGrid,
@@ -125,7 +125,7 @@ function renderDashboardView() {
 function initMainApp() {
   const shell = document.getElementById("app-shell");
   if (!shell) {
-    throw new Error("Missing #app-shell — index.html may be incomplete.");
+    throw new Error("Missing #app-shell. index.html may be incomplete.");
   }
   shell.hidden = false;
   const fv = document.getElementById("footer-version");
@@ -137,7 +137,7 @@ function initMainApp() {
       extra =
         ' · <span title="Saves go to the cloud; when you both have the app open, each other\'s changes show up within a few seconds">cloud sync + live updates</span>';
     }
-    fv.innerHTML = `आहार Tracker · <code>v${APP_VERSION}</code>${local ? " · running locally" : ""}${extra}`;
+    fv.innerHTML = `आहार Tracker · <code>v${APP_VERSION}</code> · <a href="${DEVELOPER_SITE}" target="_blank" rel="noopener noreferrer">${DEVELOPER_NAME}</a>${local ? " · running locally" : ""}${extra}`;
   }
   refreshUserSelects();
   fillSettingsForm(appState);
@@ -279,7 +279,7 @@ async function startRealtimeSubscription() {
         refreshUserSelects();
         renderDashboardView();
         renderMealsView();
-        showToast("Partner updated — progress refreshed.");
+        showToast("Partner updated. Progress refreshed.");
       },
     });
   } catch (e) {
@@ -300,7 +300,7 @@ function start() {
           void pushVaultRow(hid).catch((e) => console.warn("Background sync push:", e));
         } catch (e) {
           console.warn(e);
-          showToast("Cloud sync issue — continuing with data on this device.");
+          showToast("Cloud sync issue. Continuing with data on this device.");
         }
       }
       appState = next;

@@ -2,6 +2,8 @@
 /**
  * Writes Supabase URL + anon key into index.html (GitHub Pages needs them in the page).
  *
+ * Developer: Apoorv Kulkarni, https://ak-apoorvkulkarni.github.io/
+ *
  * Usage (pick one):
  *   node scripts/apply-supabase-config.mjs
  *   node scripts/apply-supabase-config.mjs --url=https://xxx.supabase.co --anon-key=eyJ...
@@ -85,7 +87,7 @@ async function main() {
     process.exit(1);
   }
   if (anonKey.length < 80) {
-    console.error("Error: anon key looks too short — paste the full JWT from Supabase → Settings → API.");
+    console.error("Error: anon key looks too short. Paste the full JWT from Supabase → Settings → API.");
     process.exit(1);
   }
 
@@ -101,7 +103,7 @@ async function main() {
 
   fs.writeFileSync(indexPath, html);
   console.log("Updated index.html with Supabase URL and anon key.");
-  console.log("Next: git add index.html && git commit && git push — then wait for GitHub Pages.");
+  console.log("Next: git add index.html && git commit && git push, then wait for GitHub Pages.");
 }
 
 main().catch((e) => {

@@ -1,0 +1,10 @@
+{
+  "name": "our-diet-log",
+  "private": true,
+  "description": "आहार Tracker: private shared meal log for two (static site).",
+  "author": "Apoorv Kulkarni (https://ak-apoorvkulkarni.github.io/)",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "serve": "bash serve.sh"
+  }
+}

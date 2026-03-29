@@ -4,8 +4,10 @@
   inset: 0;
   z-index: 330;
   min-height: 100dvh;
+  min-height: 100svh;
   overflow-x: hidden;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background-color: var(--bg-base);
   background-image:
     radial-gradient(ellipse 110% 90% at 90% -5%, var(--mesh-glow-1), transparent 52%),
@@ -48,7 +50,10 @@
 .marketing-landing__wrap {
   max-width: 52rem;
   margin: 0 auto;
-  padding: var(--space-md) var(--space-lg) var(--space-2xl);
+  padding-top: calc(var(--space-md) + env(safe-area-inset-top, 0px));
+  padding-right: calc(var(--space-lg) + env(safe-area-inset-right, 0px));
+  padding-bottom: calc(var(--space-2xl) + env(safe-area-inset-bottom, 0px));
+  padding-left: calc(var(--space-lg) + env(safe-area-inset-left, 0px));
 }
 
 .marketing-landing__top {
@@ -299,10 +304,15 @@
   inset: 0;
   z-index: 350;
   min-height: 100dvh;
+  min-height: 100svh;
   display: grid;
   place-items: center;
-  padding: var(--space-lg);
+  padding-top: calc(var(--space-lg) + env(safe-area-inset-top, 0px));
+  padding-right: calc(var(--space-lg) + env(safe-area-inset-right, 0px));
+  padding-bottom: calc(var(--space-lg) + env(safe-area-inset-bottom, 0px));
+  padding-left: calc(var(--space-lg) + env(safe-area-inset-left, 0px));
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background-color: var(--bg-base);
   background-image:
     radial-gradient(ellipse 110% 90% at 90% -5%, var(--mesh-glow-1), transparent 52%),
@@ -428,10 +438,15 @@
   inset: 0;
   z-index: 400;
   min-height: 100dvh;
+  min-height: 100svh;
   display: grid;
   place-items: center;
-  padding: var(--space-lg);
+  padding-top: calc(var(--space-lg) + env(safe-area-inset-top, 0px));
+  padding-right: calc(var(--space-lg) + env(safe-area-inset-right, 0px));
+  padding-bottom: calc(var(--space-lg) + env(safe-area-inset-bottom, 0px));
+  padding-left: calc(var(--space-lg) + env(safe-area-inset-left, 0px));
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background-color: var(--bg-base);
   background-image:
     radial-gradient(ellipse 110% 90% at 90% -5%, var(--mesh-glow-1), transparent 52%),
@@ -480,7 +495,7 @@
 
 .auth-back-link {
   margin: 0;
-  padding: 0;
+  padding: 0.5rem 0.35rem;
   border: none;
   background: none;
   font: inherit;
@@ -489,6 +504,11 @@
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 0.15em;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
 }
 
 .auth-back-link:hover {

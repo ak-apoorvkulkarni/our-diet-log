@@ -32,7 +32,18 @@ No accounts on our servers. Your data lives on your devices, locked behind a pas
 
 Use the **[live site](https://ak-apoorvkulkarni.github.io/our-diet-log/)** on desktop or mobile. Pick a strong password: it protects your local encrypted data.
 
-Developers who want to run or fork the project locally can serve the folder with any static file server (for example `python3 -m http.server`) and open the local URL. Cloud sync setup is documented in [`CLOUD_SYNC.md`](./CLOUD_SYNC.md).
+Developers who want to run or fork the project locally can serve the folder with any static file server (for example `npm start`, `bash serve.sh`, or `python3 -m http.server 8080`) and open the local URL. Cloud sync setup is documented in [`CLOUD_SYNC.md`](./CLOUD_SYNC.md).
+
+## Project layout
+
+| Path | Purpose |
+|------|---------|
+| `index.html` | App shell, marketing page, auth, views |
+| `css/` | Design tokens, layout, components, auth, dashboard, insights |
+| `js/` | Crypto, storage, UI modules, `app.js` entry |
+| `assets/` | Images (for example `logo.png`) |
+| `scripts/` | Node helpers (for example Supabase config injection) |
+| `supabase/` | SQL schema for optional cloud sync |
 
 ## Open source
 

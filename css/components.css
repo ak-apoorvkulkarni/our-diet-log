@@ -9,6 +9,13 @@
   font-weight: 600;
   font-size: 0.9375rem;
   transition: background var(--transition), border-color var(--transition), transform 0.15s ease;
+  touch-action: manipulation;
+}
+
+@media (max-width: 899px) {
+  .btn {
+    min-height: 44px;
+  }
 }
 
 .btn:active {
