@@ -4,7 +4,6 @@
 import {
   startOfWeekMonday,
   aggregateWeek,
-  buildInsights,
   parseIsoWeek,
   wellnessScore,
 } from "./weekly.js";
@@ -25,21 +24,6 @@ function escapeHtml(s) {
   const div = document.createElement("div");
   div.textContent = s;
   return div.innerHTML;
-}
-
-function donutGradient(h, rated) {
-  if (rated === 0) {
-    return "background: conic-gradient(var(--bg-muted) 0deg 360deg);";
-  }
-  const pHealthy = (h.healthy / rated) * 360;
-  const pOkay = (h.okay / rated) * 360;
-  const pUnhealthy = (h.unhealthy / rated) * 360;
-  return `background: conic-gradient(
-    var(--sage) 0deg ${pHealthy}deg,
-    var(--amber) ${pHealthy}deg ${pHealthy + pOkay}deg,
-    var(--coral) ${pHealthy + pOkay}deg ${pHealthy + pOkay + pUnhealthy}deg,
-    var(--bg-muted) ${pHealthy + pOkay + pUnhealthy}deg 360deg
-  );`;
 }
 
 function formatRange(from, to) {
@@ -81,32 +65,6 @@ function barFillPct(value, weekMax) {
   if (weekMax <= 0 || value <= 0) return 0;
   const raw = Math.sqrt(value / weekMax) * 100;
   return Math.min(100, Math.round(Math.max(raw, 10)));
-}
-
-function renderGroupedCalories(calA, calB, labels, nameA, nameB) {
-  const max = Math.max(1, ...labels.map((_, i) => Math.max(calA[i] || 0, calB[i] || 0)));
-  return labels
-    .map((label, i) => {
-      const a = calA[i] || 0;
-      const b = calB[i] || 0;
-      const ha = barFillPct(a, max);
-      const hb = barFillPct(b, max);
-      const empty = a === 0 && b === 0;
-      return `
-      <div class="dash-bar-group${empty ? " dash-bar-group--empty" : ""}">
-        <span class="dash-bar-group__dow">${label}</span>
-        <div class="dash-bar-group__tracks" role="group" aria-label="${label} calories">
-          <div class="dash-bar-group__track dash-bar-group__track--a" title="${escapeHtml(nameA)}: ${a || "—"} kcal">
-            <div class="dash-bar-group__fill" style="height:${ha}%"></div>
-          </div>
-          <div class="dash-bar-group__track dash-bar-group__track--b" title="${escapeHtml(nameB)}: ${b || "—"} kcal">
-            <div class="dash-bar-group__fill" style="height:${hb}%"></div>
-          </div>
-        </div>
-        <span class="dash-bar-group__pair">${a || "—"} <span class="dash-bar-group__sep">/</span> ${b || "—"}</span>
-      </div>`;
-    })
-    .join("");
 }
 
 function renderSimpleCalories(calByDay, labels) {
@@ -175,7 +133,6 @@ function renderHouseholdDashboard(state, weekCursor, name1, name2) {
   const a1 = aggregateWeek(state.meals, weekCursor, "u1");
   const a2 = aggregateWeek(state.meals, weekCursor, "u2");
   const ws = wellnessScore(agg.health, agg.rated);
-  const tips = buildInsights(agg, { personLabel: "Household" });
 
   let compareNote = "";
   if (a1.totalMeals > 0 || a2.totalMeals > 0) {
@@ -190,8 +147,6 @@ function renderHouseholdDashboard(state, weekCursor, name1, name2) {
     }
   }
 
-  const grouped = renderGroupedCalories(a1.calByDay, a2.calByDay, agg.dayLabels, name1, name2);
-
   return `
     <div class="dash-stack">
     <div class="dash-add-meal">
@@ -205,60 +160,34 @@ function renderHouseholdDashboard(state, weekCursor, name1, name2) {
       ${wellnessKpiCard(ws)}
     </div>
 
-    <div class="dash-compare card">
-      <h4 class="dash-section-title">People</h4>
-      <p class="dash-section-lead">Side-by-side snapshot for the same week.</p>
-      <div class="dash-compare__grid">
-        <div class="dash-person-card">
-          <div class="dash-person-card__name">${escapeHtml(name1)}</div>
-          <div class="dash-person-card__stats">
-            <span><strong>${a1.totalMeals}</strong> meals</span>
-            <span><strong>${a1.caloriesSum || "—"}</strong> kcal</span>
-            <span><strong>${wellnessScore(a1.health, a1.rated) ?? "—"}</strong> score</span>
-          </div>
-        </div>
-        <div class="dash-person-card">
-          <div class="dash-person-card__name">${escapeHtml(name2)}</div>
-          <div class="dash-person-card__stats">
-            <span><strong>${a2.totalMeals}</strong> meals</span>
-            <span><strong>${a2.caloriesSum || "—"}</strong> kcal</span>
-            <span><strong>${wellnessScore(a2.health, a2.rated) ?? "—"}</strong> score</span>
-          </div>
-        </div>
+    <div class="dash-compare card" role="region" aria-label="People">
+      <div class="dash-people-table-wrap">
+        <table class="dash-people-table">
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col" class="dash-people-table__num">Meals</th>
+              <th scope="col" class="dash-people-table__num">Calories</th>
+              <th scope="col" class="dash-people-table__num">Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">${escapeHtml(name1)}</th>
+              <td class="dash-people-table__num">${a1.totalMeals}</td>
+              <td class="dash-people-table__num">${a1.caloriesSum != null ? a1.caloriesSum : "—"}</td>
+              <td class="dash-people-table__num">${wellnessScore(a1.health, a1.rated) ?? "—"}</td>
+            </tr>
+            <tr>
+              <th scope="row">${escapeHtml(name2)}</th>
+              <td class="dash-people-table__num">${a2.totalMeals}</td>
+              <td class="dash-people-table__num">${a2.caloriesSum != null ? a2.caloriesSum : "—"}</td>
+              <td class="dash-people-table__num">${wellnessScore(a2.health, a2.rated) ?? "—"}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
       ${compareNote}
-    </div>
-
-    <div class="grid-2 dash-charts-row">
-      <div class="card">
-        <h4 class="dash-section-title">Calories by day</h4>
-        <p class="dash-section-lead">Paired bars — each day shows both people (kcal where logged).</p>
-        <div class="dash-bar-group__legend">
-          <span><i class="dash-legend-dot dash-legend-dot--a"></i> ${escapeHtml(name1)}</span>
-          <span><i class="dash-legend-dot dash-legend-dot--b"></i> ${escapeHtml(name2)}</span>
-        </div>
-        <div class="dash-grouped-wrap">${grouped}</div>
-      </div>
-      <div class="card">
-        <h4 class="dash-section-title">Health mix</h4>
-        <p class="dash-section-lead">Household totals for meals with a rating.</p>
-        <div class="donut-wrap">
-          <div class="donut donut--lg" style="${donutGradient(agg.health, agg.rated)}" role="img" aria-label="Health distribution"></div>
-        </div>
-        <div class="donut-legend">
-          <span><i class="legend-healthy"></i> Healthy ${agg.health.healthy}</span>
-          <span><i class="legend-okay"></i> Neutral ${agg.health.okay}</span>
-          <span><i class="legend-unhealthy"></i> Unhealthy ${agg.health.unhealthy}</span>
-          <span><i class="legend-none"></i> Not rated ${agg.health.unrated}</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="card dash-insights">
-      <h4 class="dash-section-title">Recommendations</h4>
-      <ul class="insights-list">
-        ${tips.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}
-      </ul>
     </div>
     </div>
   `;
@@ -267,7 +196,6 @@ function renderHouseholdDashboard(state, weekCursor, name1, name2) {
 function renderIndividualDashboard(state, weekCursor, userId, personName) {
   const agg = aggregateWeek(state.meals, weekCursor, userId);
   const ws = wellnessScore(agg.health, agg.rated);
-  const tips = buildInsights(agg, { personLabel: personName });
 
   const simpleBars = renderSimpleCalories(agg.calByDay, agg.dayLabels);
 
@@ -286,32 +214,10 @@ function renderIndividualDashboard(state, weekCursor, userId, personName) {
       ${wellnessKpiCard(ws)}
     </div>
 
-    <div class="grid-2 dash-charts-row">
-      <div class="card">
-        <h4 class="dash-section-title">Calorie rhythm</h4>
-        <p class="dash-section-lead">Daily kcal from your logged meals.</p>
-        <div class="dash-grouped-wrap">${simpleBars}</div>
-      </div>
-      <div class="card">
-        <h4 class="dash-section-title">Health mix</h4>
-        <p class="dash-section-lead">How you rated meals this week.</p>
-        <div class="donut-wrap">
-          <div class="donut donut--lg" style="${donutGradient(agg.health, agg.rated)}" role="img" aria-label="Health distribution"></div>
-        </div>
-        <div class="donut-legend">
-          <span><i class="legend-healthy"></i> Healthy ${agg.health.healthy}</span>
-          <span><i class="legend-okay"></i> Neutral ${agg.health.okay}</span>
-          <span><i class="legend-unhealthy"></i> Unhealthy ${agg.health.unhealthy}</span>
-          <span><i class="legend-none"></i> Not rated ${agg.health.unrated}</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="card dash-insights">
-      <h4 class="dash-section-title">Focus for ${escapeHtml(personName)}</h4>
-      <ul class="insights-list">
-        ${tips.map((t) => `<li>${escapeHtml(t)}</li>`).join("")}
-      </ul>
+    <div class="card">
+      <h4 class="dash-section-title">Calorie rhythm</h4>
+      <p class="dash-section-lead">Daily kcal from your logged meals.</p>
+      <div class="dash-grouped-wrap">${simpleBars}</div>
     </div>
     </div>
   `;

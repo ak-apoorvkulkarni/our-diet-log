@@ -1,0 +1,739 @@
+/* Embedded dashboard insights: subtle panels + heatmap (no harsh empty boxes) */
+
+.dashboard-insights-root {
+  --hm-gap: 4px;
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+}
+
+.dashboard-insights-root .insight-panel {
+  padding: var(--space-md) var(--space-md);
+}
+
+.dashboard-insights-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.dashboard-insights-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+/* Soft panels — lighter than main .card chrome */
+.insight-panel {
+  background: color-mix(in srgb, var(--bg-elevated) 82%, var(--bg-base));
+  border: 1px solid color-mix(in srgb, var(--border) 30%, transparent);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  box-shadow: none;
+}
+
+.insight-panel--hint {
+  padding: var(--space-md) var(--space-lg);
+}
+
+.insight-hint-text {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.insight-panel__title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 var(--space-xs);
+  font-family: var(--font-display);
+}
+
+.insight-panel__hint {
+  margin: 0 0 var(--space-sm);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.dashboard-insights-columns {
+  display: grid;
+  gap: var(--space-md);
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .dashboard-insights-columns--compare {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Full-width trend rows, then Health calendar */
+.dashboard-insights-charts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  width: 100%;
+  min-width: 0;
+}
+
+/* Health mix line chart + health calendar side by side (below calories / meals) */
+.dashboard-insights-health-row {
+  display: grid;
+  gap: var(--space-md);
+  width: 100%;
+  min-width: 0;
+}
+
+.dashboard-insights-health-row > .insight-panel {
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .dashboard-insights-health-row {
+    grid-template-columns: 1fr 1fr;
+    align-items: stretch;
+  }
+
+  /* Same footprint for Health mix + Health calendar (match the shorter card’s usable area) */
+  .dashboard-insights-health-row > .insight-panel--daybars,
+  .dashboard-insights-health-row > .insight-panel--heatmap {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 23rem;
+    max-height: min(23rem, 82vh);
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  .dashboard-insights-health-row > .insight-panel--daybars .daybars-card {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+
+  .dashboard-insights-health-row > .insight-panel--daybars .insight-graph-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .dashboard-insights-health-row > .insight-panel--heatmap .insight-graph-header {
+    flex-shrink: 0;
+  }
+
+  .dashboard-insights-health-row > .insight-panel--heatmap .insight-graph-body {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Fit all week rows in the panel — no scroll; rows share height, cells fill each row */
+  .dashboard-insights-health-row .heatmap-grid {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    gap: 2px;
+    padding: 4px;
+  }
+
+  .dashboard-insights-health-row .heatmap-row {
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+    gap: 2px;
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .dashboard-insights-health-row .heatmap-cell {
+    aspect-ratio: unset;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+  }
+}
+
+@media (max-width: 899px) {
+  .dashboard-insights-health-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Heatmap panel fills the column; inner grid stretches to full width */
+.insight-panel--heatmap {
+  width: 100%;
+  min-width: 0;
+}
+
+.insight-panel--heatmap-bottom {
+  width: 100%;
+  max-width: 100%;
+  align-items: stretch;
+}
+
+/* Title (left) + legend (inline, same row) — all insight charts use this; plot/body sits below */
+.insight-graph-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+  row-gap: var(--space-sm);
+  min-width: 0;
+  width: 100%;
+}
+
+.insight-graph-header .insight-panel__title,
+.insight-graph-header .daybars-card__title {
+  margin: 0;
+}
+
+.insight-graph-body {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Stacked sections: header row, then hint / list / plot with consistent vertical rhythm */
+.insight-panel--stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.insight-panel--stack .insight-panel__hint {
+  margin: 0;
+}
+
+/* Week trend lines — Mon–Sun; colors theme-only (two people), not data from any sample */
+.insight-panel--daybars {
+  --daybar-a: #3d9a6e;
+  --daybar-b: #c45c3e;
+  /* Matches panel fill so plot area isn’t a second “card”; used for dot stroke halos */
+  --trend-plot-bg: color-mix(in srgb, var(--bg-elevated) 82%, var(--bg-base));
+  --trend-grid: color-mix(in srgb, var(--border) 50%, transparent);
+  --trend-axis-muted: var(--text-muted);
+  border-radius: 28px;
+}
+
+.dashboard-insights-root .insight-panel--daybars {
+  padding: var(--space-lg);
+}
+
+.insight-panel--daybars .daybars-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 0;
+}
+
+.daybars-card__title {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: 0;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.daybars-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.daybars-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.daybars-legend__swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.daybars-legend__swatch--a {
+  background: var(--daybar-a);
+}
+
+.daybars-legend__swatch--b {
+  background: var(--daybar-b);
+}
+
+/* Y ticks in HTML (left); plot surface is only the right column — Y-axis at x=0 flush left there */
+.dashboard-insights-root .insight-panel--daybars .daybars-chart {
+  width: calc(100% + 2 * var(--space-lg));
+  margin-left: calc(-1 * var(--space-lg));
+  margin-right: calc(-1 * var(--space-lg));
+  margin-top: var(--space-sm);
+  padding: 0;
+  background: transparent;
+}
+
+.daybars-chart {
+  min-width: 0;
+}
+
+.daybars-chart-inner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.4rem;
+  align-items: stretch;
+  min-height: 220px;
+}
+
+.daybars-yaxis-labels {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: space-between;
+  padding: var(--trend-pad-t) 0 var(--trend-pad-b);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--trend-axis-muted);
+  text-align: right;
+  line-height: 1;
+}
+
+.daybars-chart--kcal .daybars-yaxis-labels {
+  min-width: 2.75rem;
+}
+
+.daybars-chart--meals .daybars-yaxis-labels {
+  min-width: 1.5rem;
+}
+
+/* Health mix — donut (replaces line chart) */
+.health-pie-wrap {
+  width: 100%;
+  max-width: 260px;
+  margin: 0 auto;
+  line-height: 0;
+}
+
+.health-pie-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+}
+
+.health-pie__slice {
+  stroke: var(--trend-plot-bg);
+  stroke-width: 1.25;
+  vector-effect: non-scaling-stroke;
+}
+
+.health-pie__slice--healthy {
+  fill: color-mix(in srgb, var(--sage) 78%, var(--bg-muted));
+}
+
+.health-pie__slice--neutral {
+  fill: color-mix(in srgb, var(--amber) 72%, var(--bg-muted));
+}
+
+.health-pie__slice--unhealthy {
+  fill: color-mix(in srgb, var(--coral) 70%, var(--bg-muted));
+}
+
+.health-pie__ring {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.health-pie__ring.health-pie__ring--healthy {
+  stroke: color-mix(in srgb, var(--sage) 78%, var(--bg-muted));
+}
+
+.health-pie__ring.health-pie__ring--neutral {
+  stroke: color-mix(in srgb, var(--amber) 72%, var(--bg-muted));
+}
+
+.health-pie__ring.health-pie__ring--unhealthy {
+  stroke: color-mix(in srgb, var(--coral) 70%, var(--bg-muted));
+}
+
+.health-pie__track {
+  stroke: color-mix(in srgb, var(--border) 55%, transparent);
+  stroke-width: 10;
+  vector-effect: non-scaling-stroke;
+}
+
+.health-pie__total {
+  font-family: var(--font-sans);
+  font-size: 1.125rem;
+  font-weight: 700;
+  fill: var(--text-primary);
+}
+
+.health-pie__empty {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  fill: var(--text-muted);
+}
+
+.health-pie-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm) var(--space-md);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.health-pie-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.health-pie-legend__sw {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.health-pie-legend__sw--healthy {
+  background: color-mix(in srgb, var(--sage) 78%, var(--bg-muted));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sage) 45%, transparent);
+}
+
+.health-pie-legend__sw--neutral {
+  background: color-mix(in srgb, var(--amber) 72%, var(--bg-muted));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--amber) 40%, transparent);
+}
+
+.health-pie-legend__sw--unhealthy {
+  background: color-mix(in srgb, var(--coral) 70%, var(--bg-muted));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--coral) 42%, transparent);
+}
+
+.health-pie-legend__n {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Single surface with the panel — no inset “second box” */
+.daybars-plot-surface {
+  min-width: 0;
+  width: 100%;
+  background: transparent;
+  border-radius: 0;
+  overflow: visible;
+}
+
+/* Matches viewBox width/height in ui-insights.js (svgW × H) so SVG isn’t letterboxed on the sides */
+.daybars-svg-frame {
+  width: 100%;
+  aspect-ratio: 628 / 280;
+  min-height: 0;
+  line-height: 0;
+}
+
+.daybars-svg-frame .daybars-trend-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  vertical-align: top;
+}
+
+.daybars-trend__yaxis {
+  stroke: var(--chart-axis-stroke, color-mix(in srgb, var(--border) 70%, transparent));
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.85;
+}
+
+.daybars-trend__grid {
+  stroke: var(--trend-grid);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.9;
+}
+
+.daybars-trend__grid--base {
+  stroke: var(--trend-grid);
+  stroke-width: 1.15;
+  opacity: 1;
+}
+
+.daybars-trend__axis {
+  stroke: var(--chart-axis-stroke, color-mix(in srgb, var(--border) 80%, transparent));
+  stroke-width: 1.25;
+  vector-effect: non-scaling-stroke;
+}
+
+.daybars-trend__xlabel {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  fill: var(--trend-axis-muted);
+}
+
+.daybars-trend__path {
+  fill: none;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.daybars-trend__path--a {
+  stroke: var(--daybar-a);
+}
+
+.daybars-trend__path--b {
+  stroke: var(--daybar-b);
+}
+
+.daybars-trend__dot {
+  stroke: var(--trend-plot-bg);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.daybars-trend__dot--a {
+  fill: var(--daybar-a);
+}
+
+.daybars-trend__dot--b {
+  fill: var(--daybar-b);
+}
+
+.insights-empty {
+  color: var(--text-muted);
+  font-size: 0.9375rem;
+}
+
+/* Heatmap: weeks × weekdays; cells grow to fill panel width (fluid columns) */
+.heatmap-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--hm-gap);
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: var(--hm-gap);
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  background: color-mix(in srgb, var(--bg-muted) 22%, transparent);
+}
+
+.heatmap-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--hm-gap);
+  width: 100%;
+  min-width: 0;
+}
+
+.heatmap-cell {
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 1;
+  height: auto;
+  border-radius: 2px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  box-sizing: border-box;
+}
+
+/* No meals: still show slot so weeks × days grid is readable */
+.heatmap-cell--empty {
+  opacity: 1;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--bg-base) 55%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 40%, transparent);
+}
+
+.heatmap-cell--unrated {
+  background: color-mix(in srgb, var(--text-muted) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 20%, transparent);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.heatmap-cell--healthy {
+  background: color-mix(in srgb, var(--sage) 78%, var(--bg-muted));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sage) 45%, transparent);
+}
+
+.heatmap-cell--neutral {
+  background: color-mix(in srgb, var(--amber) 72%, var(--bg-muted));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--amber) 40%, transparent);
+}
+
+.heatmap-cell--unhealthy {
+  background: color-mix(in srgb, var(--coral) 70%, var(--bg-muted));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--coral) 42%, transparent);
+}
+
+.heatmap-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: var(--space-sm);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  max-width: 100%;
+}
+
+.insight-graph-header .heatmap-legend {
+  margin-top: 0;
+}
+
+.heatmap-legend-gap {
+  margin-left: 0.35rem;
+}
+
+.heatmap-swatch {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.heatmap-swatch--healthy {
+  background: color-mix(in srgb, var(--sage) 78%, var(--bg-muted));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sage) 45%, transparent);
+}
+
+.heatmap-swatch--neutral {
+  background: color-mix(in srgb, var(--amber) 72%, var(--bg-muted));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--amber) 40%, transparent);
+}
+
+.heatmap-swatch--unhealthy {
+  background: color-mix(in srgb, var(--coral) 70%, var(--bg-muted));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--coral) 42%, transparent);
+}
+
+.heatmap-swatch--unrated {
+  background: color-mix(in srgb, var(--text-muted) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 20%, transparent);
+}
+
+.insights-compare-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+
+.insights-compare-list li {
+  margin-bottom: 0.35rem;
+}
+
+.insights-summary-list {
+  margin: 0 0 var(--space-md);
+  padding-left: 1.1rem;
+  line-height: 1.65;
+}
+
+.insight-panel--stack .insights-summary-list {
+  margin: 0;
+}
+
+.meals-filters-card {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
+}
+
+.meals-filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-md);
+}
+
+@media (min-width: 700px) {
+  .meals-filters-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .dashboard-insights-root {
+    border-top-color: var(--border);
+  }
+
+  .insight-panel {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+  }
+
+  .insight-panel--daybars {
+    background: #0f0f0f;
+    border-color: color-mix(in srgb, var(--border) 80%, transparent);
+    /* Reference-style: neon green + cool accent for second series; readable on near-black */
+    --daybar-a: #4ade80;
+    --daybar-b: #38bdf8;
+    --trend-plot-bg: #0f0f0f;
+    --trend-grid: rgba(255, 255, 255, 0.06);
+    --trend-axis-muted: #94a3b8;
+  }
+
+  .insight-panel--daybars .daybars-trend__xlabel {
+    fill: #94a3b8;
+  }
+
+  .daybars-trend__yaxis {
+    stroke: rgba(255, 255, 255, 0.12);
+  }
+
+  .daybars-trend__grid {
+    stroke: rgba(255, 255, 255, 0.055);
+  }
+
+  .daybars-trend__grid--base {
+    stroke: rgba(255, 255, 255, 0.09);
+  }
+
+  .daybars-trend__axis {
+    stroke: rgba(255, 255, 255, 0.12);
+  }
+
+  .insight-panel--heatmap .heatmap-grid {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .insight-panel--heatmap .heatmap-cell--empty {
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  }
+
+  .dashboard-insights-title {
+    font-family: var(--font-sans);
+    font-size: 1.125rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+}

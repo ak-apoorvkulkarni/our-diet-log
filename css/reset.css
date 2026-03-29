@@ -58,6 +58,22 @@ body::before {
   }
 }
 
+@media (prefers-color-scheme: dark) {
+  body {
+    background-image: none;
+  }
+
+  body::before {
+    opacity: 0.12;
+  }
+}
+
+@media (prefers-color-scheme: dark) and (prefers-reduced-motion: reduce) {
+  body::before {
+    opacity: 0.12;
+  }
+}
+
 img {
   max-width: 100%;
   height: auto;

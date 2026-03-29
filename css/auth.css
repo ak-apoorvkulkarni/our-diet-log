@@ -1,3 +1,427 @@
+/* Full marketing page (first screen); scrolls on small viewports */
+.marketing-landing {
+  position: fixed;
+  inset: 0;
+  z-index: 330;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background-color: var(--bg-base);
+  background-image:
+    radial-gradient(ellipse 110% 90% at 90% -5%, var(--mesh-glow-1), transparent 52%),
+    radial-gradient(ellipse 95% 75% at -5% 105%, var(--mesh-glow-2), transparent 48%),
+    radial-gradient(ellipse 70% 60% at 45% 55%, var(--mesh-glow-3), transparent 65%);
+}
+
+.marketing-landing::before {
+  content: "";
+  position: fixed;
+  inset: -25%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 42% 38% at 58% 28%, var(--mesh-glow-1), transparent),
+    radial-gradient(ellipse 40% 36% at 22% 78%, var(--mesh-glow-2), transparent),
+    radial-gradient(ellipse 35% 30% at 82% 72%, var(--mesh-glow-3), transparent);
+  opacity: 0.88;
+  animation: ambientMesh 24s var(--ease-out-soft, ease) infinite alternate;
+}
+
+.marketing-landing > * {
+  position: relative;
+  z-index: 1;
+}
+
+.marketing-landing[hidden] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-landing::before {
+    animation: none;
+    opacity: 0.88;
+  }
+}
+
+.marketing-landing__wrap {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: var(--space-md) var(--space-lg) var(--space-2xl);
+}
+
+.marketing-landing__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-sm) 0 var(--space-xl);
+  border-bottom: 1px solid var(--border);
+}
+
+.marketing-landing__top-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.marketing-landing__top-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  object-fit: contain;
+  border: 1px solid var(--border);
+  background: linear-gradient(135deg, var(--accent-soft), var(--sage-soft));
+  padding: 4px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.marketing-landing__top-name {
+  font-family: var(--font-brand);
+  font-weight: 600;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+}
+
+.marketing-landing__top-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.marketing-landing__top-actions .btn {
+  padding-inline: 1rem;
+  font-size: 0.875rem;
+}
+
+.marketing-landing__hero {
+  padding: var(--space-2xl) 0 calc(var(--space-2xl) + var(--space-md));
+  text-align: center;
+}
+
+.marketing-landing__eyebrow {
+  margin: 0 0 var(--space-md);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.marketing-landing__headline {
+  margin: 0 0 var(--space-lg);
+  font-family: var(--font-brand);
+  font-size: clamp(2rem, 6vw, 2.75rem);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+  color: var(--text-primary);
+}
+
+.marketing-landing__headline-line2 {
+  display: inline-block;
+  margin-top: 0.15em;
+  background: linear-gradient(120deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 75%, var(--text-primary)) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@supports not (background-clip: text) {
+  .marketing-landing__headline-line2 {
+    color: var(--accent);
+    background: none;
+  }
+}
+
+.marketing-landing__lead {
+  margin: 0 auto var(--space-xl);
+  max-width: 38rem;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+
+.marketing-landing__hero-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-sm);
+  max-width: 22rem;
+  margin: 0 auto;
+}
+
+@media (min-width: 480px) {
+  .marketing-landing__hero-cta {
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    max-width: none;
+  }
+
+  .marketing-landing__hero-cta .btn {
+    min-width: 11rem;
+  }
+}
+
+.marketing-landing__cta-primary {
+  font-weight: 600;
+}
+
+.marketing-landing__panels {
+  padding-bottom: var(--space-2xl);
+}
+
+.marketing-landing__panel-grid {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+@media (min-width: 700px) {
+  .marketing-landing__panel-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-xl);
+  }
+}
+
+.marketing-landing__panel {
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--bg-elevated) 88%, transparent) 0%,
+    color-mix(in srgb, var(--bg-elevated) 96%, var(--accent-soft)) 100%
+  );
+  box-shadow: var(--shadow-sm);
+}
+
+.marketing-landing__panel-title {
+  margin: 0 0 var(--space-sm);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-family: var(--font-brand);
+}
+
+.marketing-landing__panel-text {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.marketing-landing__closing {
+  text-align: center;
+  padding: var(--space-2xl) var(--space-md);
+  border-top: 1px solid var(--border);
+  margin-top: var(--space-lg);
+}
+
+.marketing-landing__closing-title {
+  margin: 0 0 var(--space-sm);
+  font-family: var(--font-brand);
+  font-size: clamp(1.35rem, 3vw, 1.6rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.marketing-landing__closing-lead {
+  margin: 0 auto var(--space-xl);
+  max-width: 28rem;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.marketing-landing__closing-cta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+@media (min-width: 480px) {
+  .marketing-landing__closing-cta {
+    flex-direction: row;
+    justify-content: center;
+  }
+}
+
+.marketing-landing__footer {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-lg);
+  padding-bottom: var(--space-md);
+  text-align: center;
+  border-top: 1px solid var(--border);
+}
+
+.marketing-landing__footer-text {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.marketing-landing__footer-label {
+  margin-right: 0.35rem;
+}
+
+.marketing-landing__footer-link {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.marketing-landing__footer-link:hover {
+  color: var(--text-primary);
+}
+
+.marketing-landing__footer-url {
+  font-weight: 400;
+  text-decoration: inherit;
+}
+
+/* Product welcome card (step after marketing, before password) */
+.landing-screen__back-wrap {
+  margin: calc(-1 * var(--space-xs)) 0 var(--space-md);
+  text-align: center;
+}
+
+/* Welcome screen (shown before login); same atmosphere as .auth-screen */
+.landing-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 350;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-lg);
+  overflow-y: auto;
+  background-color: var(--bg-base);
+  background-image:
+    radial-gradient(ellipse 110% 90% at 90% -5%, var(--mesh-glow-1), transparent 52%),
+    radial-gradient(ellipse 95% 75% at -5% 105%, var(--mesh-glow-2), transparent 48%),
+    radial-gradient(ellipse 70% 60% at 45% 55%, var(--mesh-glow-3), transparent 65%);
+}
+
+.landing-screen::before {
+  content: "";
+  position: fixed;
+  inset: -25%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 42% 38% at 58% 28%, var(--mesh-glow-1), transparent),
+    radial-gradient(ellipse 40% 36% at 22% 78%, var(--mesh-glow-2), transparent),
+    radial-gradient(ellipse 35% 30% at 82% 72%, var(--mesh-glow-3), transparent);
+  opacity: 0.88;
+  animation: ambientMesh 24s var(--ease-out-soft, ease) infinite alternate;
+}
+
+.landing-screen > * {
+  position: relative;
+  z-index: 1;
+}
+
+.landing-screen[hidden] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-screen::before {
+    animation: none;
+    transform: none;
+    opacity: 0.88;
+  }
+}
+
+.landing-screen__inner {
+  width: 100%;
+  max-width: 440px;
+  padding: var(--space-2xl) var(--space-xl);
+  background: linear-gradient(
+    165deg,
+    var(--bg-elevated) 0%,
+    color-mix(in srgb, var(--bg-elevated) 93%, var(--accent-soft)) 100%
+  );
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  animation: authCardIn 0.55s var(--ease-out-soft, ease) both;
+}
+
+.landing-screen__brand {
+  width: 96px;
+  height: 96px;
+  margin: 0 auto var(--space-lg);
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--accent-soft), var(--sage-soft));
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+}
+
+.landing-screen__logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.landing-screen__title {
+  font-family: var(--font-brand);
+  font-size: clamp(1.5rem, 4vw, 1.75rem);
+  font-weight: 600;
+  text-align: center;
+  margin: 0 0 var(--space-sm);
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+
+.landing-screen__tagline {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  margin: 0 0 var(--space-lg);
+}
+
+.landing-screen__bullets {
+  margin: 0 0 var(--space-xl);
+  padding-left: 1.25rem;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+.landing-screen__bullets li {
+  margin-bottom: 0.35rem;
+}
+
+.landing-screen__bullets li:last-child {
+  margin-bottom: 0;
+}
+
+.landing-screen__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.landing-screen__actions .btn {
+  width: 100%;
+}
+
 /* Last in DOM + fixed so login stacks above #app-shell until dismissed */
 .auth-screen {
   position: fixed;
@@ -47,6 +471,28 @@
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;
+}
+
+.auth-card__back-wrap {
+  margin: calc(-1 * var(--space-sm)) 0 var(--space-md);
+  text-align: center;
+}
+
+.auth-back-link {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.auth-back-link:hover {
+  color: var(--text-primary);
 }
 
 .auth-card {

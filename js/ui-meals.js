@@ -1,7 +1,7 @@
 /**
  * Log meal form + meal grid + edit modal.
  */
-import { addMeal, updateMeal, deleteMeal, sortMealsDesc } from "./meals-store.js";
+import { addMeal, updateMeal, deleteMeal, sortMealsDesc, filterMeals } from "./meals-store.js";
 import { fileToCompressedDataUrl } from "./image-utils.js";
 import { guessCalories } from "./calorie-estimate.js";
 import {
@@ -76,17 +76,33 @@ function formatWhen(iso) {
   });
 }
 
-export function renderMealGrid(container, state, { onEdit, userFilter }) {
+export function renderMealGrid(container, state, { onEdit, userFilter, mealFilters }) {
   if (!container) return;
-  let list = sortMealsDesc(state.meals);
-  if (userFilter && userFilter !== "all") {
-    list = list.filter((m) => m.userId === userFilter);
+  let list;
+  if (mealFilters) {
+    list = sortMealsDesc(filterMeals(state.meals, mealFilters));
+  } else {
+    list = sortMealsDesc(state.meals);
+    if (userFilter && userFilter !== "all") {
+      list = list.filter((m) => m.userId === userFilter);
+    }
   }
   if (list.length === 0) {
+    const filtered =
+      mealFilters &&
+      (mealFilters.query ||
+        (mealFilters.userId && mealFilters.userId !== "all") ||
+        (mealFilters.category && mealFilters.category !== "all") ||
+        mealFilters.from ||
+        mealFilters.to);
     container.innerHTML = `
       <div class="empty-state card">
         <div class="empty-state__icon">🍽</div>
-        <p>No meals yet. Log your first meal with a photo.</p>
+        <p>${
+          filtered
+            ? "No meals match these filters — try widening the date range or clearing search."
+            : "No meals yet. Log your first meal with a photo."
+        }</p>
       </div>`;
     return;
   }
@@ -211,9 +227,12 @@ export function bindLogForm(state, passwordRef, persist, showToast) {
     pendingImage = null;
     if (preview) preview.innerHTML = "";
     if (fileInput) fileInput.value = "";
-    document.getElementById("meal-title")?.value = "";
-    document.getElementById("meal-calories")?.value = "";
-    document.getElementById("meal-notes")?.value = "";
+    const mealTitle = document.getElementById("meal-title");
+    if (mealTitle) mealTitle.value = "";
+    const mealCal = document.getElementById("meal-calories");
+    if (mealCal) mealCal.value = "";
+    const mealNotes = document.getElementById("meal-notes");
+    if (mealNotes) mealNotes.value = "";
     const d = document.getElementById("meal-date");
     const t = document.getElementById("meal-time");
     if (d) d.value = todayISODate();

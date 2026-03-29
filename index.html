@@ -4,10 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
-    <meta name="description" content="आहार Tracker — private shared meal log for two, encrypted in your browser." />
+    <meta name="description" content="आहार Tracker: private shared meal log for two, encrypted in your browser." />
     <title>आहार Tracker</title>
-    <link rel="icon" href="assets/logo.png" type="image/png" sizes="any" />
-    <link rel="apple-touch-icon" href="assets/logo.png" />
+    <link rel="icon" href="assets/logo.png?v=1.8.31" type="image/png" sizes="any" />
+    <link rel="apple-touch-icon" href="assets/logo.png?v=1.8.31" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="css/components.css" />
     <link rel="stylesheet" href="css/auth.css" />
     <link rel="stylesheet" href="css/dashboard.css" />
+    <link rel="stylesheet" href="css/insights.css" />
   </head>
   <body>
     <div id="app-shell" class="app-shell" hidden>
@@ -29,7 +30,7 @@
         <div class="app-sidebar__brand">
           <img
             class="app-sidebar__logo"
-            src="assets/logo.png"
+            src="assets/logo.png?v=1.8.31"
             alt=""
             width="56"
             height="56"
@@ -87,6 +88,7 @@
             </button>
           </div>
           <div id="dashboard-weekly-mount"></div>
+          <div id="dashboard-insights-mount" class="dashboard-insights-root"></div>
         </section>
 
         <section id="view-log" class="view" aria-labelledby="log-heading">
@@ -164,11 +166,37 @@
         </section>
 
         <section id="view-meals" class="view" aria-labelledby="meals-heading">
-          <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem">
-            <h2 id="meals-heading" class="card__title" style="margin: 0">All meals</h2>
-            <div class="field" style="margin: 0; min-width: 180px">
-              <label for="filter-user" class="sr-only">Filter by person</label>
-              <select id="filter-user"></select>
+          <h2 id="meals-heading" class="card__title" style="margin: 0 0 1rem">All meals</h2>
+          <div class="card meals-filters-card">
+            <div class="meals-filters-grid">
+              <div class="field" style="margin: 0">
+                <label for="meals-search">Search</label>
+                <input type="search" id="meals-search" placeholder="Food name or notes…" autocomplete="off" />
+              </div>
+              <div class="field" style="margin: 0">
+                <label for="filter-user">Who</label>
+                <select id="filter-user"></select>
+              </div>
+              <div class="field" style="margin: 0">
+                <label for="meals-filter-category">Category</label>
+                <select id="meals-filter-category">
+                  <option value="all">All categories</option>
+                  <option value="breakfast">Breakfast</option>
+                  <option value="lunch">Lunch</option>
+                  <option value="afternoon_snacks">Afternoon snacks</option>
+                  <option value="dinner">Dinner</option>
+                  <option value="evening_snacks">Evening snacks</option>
+                  <option value="random">Random meal</option>
+                </select>
+              </div>
+              <div class="field" style="margin: 0">
+                <label for="meals-date-from">From date</label>
+                <input type="date" id="meals-date-from" />
+              </div>
+              <div class="field" style="margin: 0">
+                <label for="meals-date-to">To date</label>
+                <input type="date" id="meals-date-to" />
+              </div>
             </div>
           </div>
           <div id="meals-grid"></div>
@@ -187,6 +215,17 @@
               <input id="settings-user2-name" type="text" autocomplete="nickname" />
             </div>
             <p class="field-hint">Used in meal cards and filters.</p>
+          </div>
+          <div class="card" style="max-width: 560px; margin-bottom: 1.5rem">
+            <h3 class="card__title" style="font-size: 1rem">Gentle reminders</h3>
+            <p class="field-hint">
+              Optional: two soft nudges per day at <strong>1:00 PM</strong> and <strong>9:00 PM</strong> in your device’s
+              local timezone — only if you allow browser notifications.
+            </p>
+            <p class="field-hint" id="reminders-status">Reminders: off</p>
+            <button type="button" class="btn btn--secondary" id="btn-reminders-enable">
+              Turn on gentle reminders (13:00 &amp; 21:00)
+            </button>
           </div>
           <div class="card" style="max-width: 560px; margin-bottom: 1.5rem">
             <h3 class="card__title" style="font-size: 1rem">Backup &amp; restore</h3>
@@ -341,12 +380,134 @@
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-    <div id="auth-screen" class="auth-screen">
+    <div id="marketing-landing" class="marketing-landing" role="region" aria-label="आहार Tracker">
+      <div class="marketing-landing__wrap">
+        <header class="marketing-landing__top">
+          <div class="marketing-landing__top-brand">
+            <img
+              class="marketing-landing__top-logo"
+              src="assets/logo.png?v=1.8.31"
+              alt=""
+              width="40"
+              height="40"
+              decoding="async"
+            />
+            <span class="marketing-landing__top-name">आहार Tracker</span>
+          </div>
+          <div class="marketing-landing__top-actions">
+            <button type="button" class="btn btn--ghost marketing-open-product">Log in</button>
+            <button type="button" class="btn btn--primary marketing-open-product">Get started</button>
+          </div>
+        </header>
+
+        <section class="marketing-landing__hero" aria-labelledby="marketing-hero-heading">
+          <p class="marketing-landing__eyebrow">Shared meal tracking</p>
+          <h1 id="marketing-hero-heading" class="marketing-landing__headline">
+            Eat well, together.<br />
+            <span class="marketing-landing__headline-line2">Keep it private.</span>
+          </h1>
+          <p class="marketing-landing__lead">
+            One place for your household: meal photos, optional calories, and weekly insights. Encrypted in your browser
+            before anything touches storage.
+          </p>
+          <div class="marketing-landing__hero-cta">
+            <button type="button" class="btn btn--primary marketing-landing__cta-primary marketing-open-product">
+              Get started
+            </button>
+            <button type="button" class="btn btn--secondary marketing-open-product">I already use the app</button>
+          </div>
+        </section>
+
+        <section class="marketing-landing__panels" aria-labelledby="marketing-panels-heading">
+          <h2 id="marketing-panels-heading" class="sr-only">What you get</h2>
+          <div class="marketing-landing__panel-grid">
+            <article class="marketing-landing__panel">
+              <h3 class="marketing-landing__panel-title">Log without friction</h3>
+              <p class="marketing-landing__panel-text">
+                Quick entries with photos and simple health ratings. Calorie hints when you want them, not when you do
+                not.
+              </p>
+            </article>
+            <article class="marketing-landing__panel">
+              <h3 class="marketing-landing__panel-title">See the week at a glance</h3>
+              <p class="marketing-landing__panel-text">
+                Household and per-person dashboards, trends, and patterns so you both stay aligned.
+              </p>
+            </article>
+            <article class="marketing-landing__panel">
+              <h3 class="marketing-landing__panel-title">Designed for two devices</h3>
+              <p class="marketing-landing__panel-text">
+                Optional cloud sync keeps phones in step, or move a backup file when you need to. Your passphrase never
+                leaves your control.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="marketing-landing__closing" aria-labelledby="marketing-closing-heading">
+          <h2 id="marketing-closing-heading" class="marketing-landing__closing-title">Ready when you are</h2>
+          <p class="marketing-landing__closing-lead">
+            Open the app, pick a strong password, and start logging. No separate accounts on our servers.
+          </p>
+          <div class="marketing-landing__closing-cta">
+            <button type="button" class="btn btn--primary marketing-open-product">Continue to the app</button>
+            <button type="button" class="btn btn--ghost marketing-open-product">Log in</button>
+          </div>
+        </section>
+
+        <footer class="marketing-landing__footer">
+          <p class="marketing-landing__footer-text">
+            <span class="marketing-landing__footer-label">Developer</span>
+            <a
+              class="marketing-landing__footer-link"
+              href="https://ak-apoorvkulkarni.github.io/"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Apoorv Kulkarni<span class="marketing-landing__footer-url"> · ak-apoorvkulkarni.github.io</span></a
+            >
+          </p>
+        </footer>
+      </div>
+    </div>
+
+    <div id="landing-screen" class="landing-screen" role="region" aria-label="App welcome" hidden aria-hidden="true">
+      <div class="landing-screen__inner">
+        <p class="landing-screen__back-wrap">
+          <button type="button" class="auth-back-link" id="btn-landing-back-marketing">Back to home</button>
+        </p>
+        <div class="landing-screen__brand">
+          <img
+            class="landing-screen__logo"
+            src="assets/logo.png?v=1.8.31"
+            alt=""
+            width="88"
+            height="88"
+            decoding="async"
+          />
+        </div>
+        <h1 class="landing-screen__title">आहार Tracker</h1>
+        <p class="landing-screen__tagline">A shared meal log for two. Photos, calories, and weekly insights stay private on your devices.</p>
+        <ul class="landing-screen__bullets" aria-label="Highlights">
+          <li>Encrypted in your browser before anything is stored</li>
+          <li>Household and per-person dashboards</li>
+          <li>Optional cloud sync so both phones stay in step</li>
+        </ul>
+        <div class="landing-screen__actions">
+          <button type="button" class="btn btn--primary" id="btn-landing-create">Create new account</button>
+          <button type="button" class="btn btn--secondary" id="btn-landing-unlock">I already have a password</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="auth-screen" class="auth-screen" hidden aria-hidden="true">
       <div id="auth-card" class="auth-card">
+        <p class="auth-card__back-wrap">
+          <button type="button" class="auth-back-link" id="btn-auth-back-landing">Back to welcome</button>
+        </p>
         <div class="auth-card__logo-wrap">
           <img
             class="auth-card__logo"
-            src="assets/logo.png"
+            src="assets/logo.png?v=1.8.31"
             alt=""
             width="64"
             height="64"
@@ -355,7 +516,7 @@
         </div>
         <h1>आहार Tracker</h1>
         <p class="auth-card__lead">
-          Shared dashboard for two. Your entries are encrypted on this device with your password — nothing readable is
+          Shared dashboard for two. Your entries are encrypted on this device with your password. Nothing readable is
           stored in plain text.
         </p>
 
@@ -370,7 +531,7 @@
         <p id="auth-existing-banner" class="auth-existing-banner" hidden role="status">
           <strong>This browser already has a log.</strong> Unlock with your password. To use a
           <em>different</em> password here, export a backup from Settings first (after you unlock), then tap
-          <strong>Erase data</strong> below — creating a second log without erasing is not allowed (one vault per
+          <strong>Erase data</strong> below. Creating a second log without erasing is not allowed (one vault per
           browser).
         </p>
 
@@ -419,15 +580,15 @@
           First time? Create password
         </button>
         <button type="button" id="btn-show-unlock" class="btn btn--ghost auth-toggle" style="width: 100%; margin-top: 0.5rem">
-          Already have a log — unlock
+          Already have a log, unlock
         </button>
 
         <div class="auth-note">
-          <strong>Privacy:</strong> This is a static site — there is no server that stores your meals. Each browser
+          <strong>Privacy:</strong> This is a static site: there is no server that stores your meals. Each browser
           (laptop vs phone) keeps its <strong>own</strong> copy in storage until you connect them.
           <strong> To see laptop data on your phone:</strong> (1) Set up <strong>Supabase</strong> (see
           <code>CLOUD_SYNC.md</code>), put your project URL and anon key in <code>index.html</code>, redeploy GitHub
-          Pages, then unlock with the <strong>same password</strong> on both devices — or (2) on the laptop use
+          Pages, then unlock with the <strong>same password</strong> on both devices; or (2) on the laptop use
           Settings → backup file, then on the phone use <strong>Restore backup file</strong> below and unlock.
         </div>
         <div class="field" style="margin-top: 1.25rem">
@@ -475,6 +636,72 @@
       /* Optional: USDA FoodData API key (free at api.data.gov) — higher rate limits than built-in DEMO_KEY */
       window.__DIET_USDA_API_KEY__ = "";
     </script>
-    <script type="module" src="js/app.js"></script>
+    <script>
+      (function () {
+        function showBanner(text) {
+          var b = document.getElementById("auth-crypto-banner");
+          if (b) {
+            b.hidden = false;
+            b.textContent = text;
+          }
+        }
+        function runFileProtocolHint() {
+          try {
+            if (typeof location !== "undefined" && location.protocol === "file:") {
+              showBanner(
+                "This page was opened as a file (file://). Most browsers will not run the app’s JavaScript modules, so buttons do nothing. From this project folder run: python3 -m http.server 8080 — then open http://127.0.0.1:8080 — or use your published HTTPS site."
+              );
+            }
+          } catch (e) {}
+        }
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", runFileProtocolHint);
+        } else {
+          runFileProtocolHint();
+        }
+        window.__dietReportLoadFailure = function (detail) {
+          try {
+            window.__dietLoadFailureNotified = true;
+          } catch (e) {}
+          showBanner(
+            detail ||
+              "The app script did not load. If you opened index.html as a file, use a local server (see message above) or your GitHub Pages URL. Otherwise hard-refresh or check the browser console (F12)."
+          );
+        };
+      })();
+    </script>
+    <!-- Dynamic import catches failures; import.meta.url fixes subpath hosts (e.g. github.io/repo/). -->
+    <script type="module">
+      import(new URL("./js/app.js", import.meta.url).href).catch(function (err) {
+        console.error(err);
+        if (typeof window.__dietReportLoadFailure === "function") {
+          window.__dietReportLoadFailure(
+            "Could not load app code: " +
+              (err && err.message ? err.message : String(err)) +
+              " — If the address bar shows file://, run: python3 -m http.server 8080 then open http://127.0.0.1:8080"
+          );
+        }
+      });
+    </script>
+    <script>
+      (function () {
+        function watchdog() {
+          try {
+            if (window.__DIET_AUTH_READY__) return;
+            if (window.__dietLoadFailureNotified) return;
+            var b = document.getElementById("auth-crypto-banner");
+            if (b && b.textContent && b.textContent.length > 10) return;
+            if (typeof window.__dietReportLoadFailure === "function") {
+              window.__dietReportLoadFailure(
+                "This page is not running the app (buttons stay dead). Do not open index.html as a file. In Terminal: cd to the project folder, run python3 -m http.server 8080, then visit http://127.0.0.1:8080 — or use your https://…github.io… link. F12 → Console shows the real error."
+              );
+            }
+          } catch (e) {}
+        }
+        window.addEventListener("load", function () {
+          setTimeout(watchdog, 4500);
+        });
+      })();
+    </script>
   </body>
 </html>

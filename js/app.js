@@ -17,8 +17,11 @@ import {
   bindDashboardScope,
   weekCursorFromStorage,
   persistWeekCursor,
+  getDashboardScope,
 } from "./ui-dashboard.js";
 import { bindSettings, fillSettingsForm } from "./ui-settings.js";
+import { renderDashboardInsights } from "./ui-insights.js";
+import { bindReminderSettings, startReminderScheduler, isRemindersEnabled } from "./reminders.js";
 import {
   mergeRemoteVault,
   pushVaultRow,
@@ -83,19 +86,40 @@ function escapeAttr(s) {
   return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 }
 
+function buildMealFilters() {
+  const search = document.getElementById("meals-search");
+  if (!search) return null;
+  return {
+    query: document.getElementById("meals-search")?.value || "",
+    userId: document.getElementById("filter-user")?.value || "all",
+    category: document.getElementById("meals-filter-category")?.value || "all",
+    from: document.getElementById("meals-date-from")?.value || "",
+    to: document.getElementById("meals-date-to")?.value || "",
+  };
+}
+
+function refreshMealsDashboardInsights() {
+  renderMealsView();
+  renderDashboardView();
+}
+
 function renderMealsView() {
   const grid = document.getElementById("meals-grid");
-  const filter = document.getElementById("filter-user")?.value || "all";
+  const mealFilters = buildMealFilters();
   renderMealGrid(grid, appState, {
-    userFilter: filter,
+    mealFilters,
     onEdit: (id) =>
-      openEditModal(appState, id, passwordRef, persist, showToast, () => renderMealsView()),
+      openEditModal(appState, id, passwordRef, persist, showToast, () => refreshMealsDashboardInsights()),
   });
 }
 
 function renderDashboardView() {
   const mount = document.getElementById("dashboard-weekly-mount");
   if (mount) renderWeeklyDashboard(mount, appState, weekCursor);
+  const insightsMount = document.getElementById("dashboard-insights-mount");
+  if (insightsMount) {
+    renderDashboardInsights(insightsMount, appState, weekCursor, showToast, getDashboardScope());
+  }
 }
 
 function initMainApp() {
@@ -123,6 +147,10 @@ function initMainApp() {
     sessionPassword = "";
     location.reload();
   });
+  bindReminderSettings(showToast);
+  if (isRemindersEnabled()) {
+    startReminderScheduler(showToast);
+  }
 
   function closeMobileSidebarIfNeeded() {
     if (!window.matchMedia("(max-width: 899px)").matches) return;
@@ -200,6 +228,12 @@ function initMainApp() {
   });
 
   document.getElementById("filter-user")?.addEventListener("change", renderMealsView);
+  ["meals-search", "meals-filter-category", "meals-date-from", "meals-date-to"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("input", renderMealsView);
+    document.getElementById(id)?.addEventListener("change", renderMealsView);
+  });
+
+  window.addEventListener("diet-insights-rerender", () => renderDashboardView());
 
   bindWeekNav(
     () => weekCursor,
@@ -263,7 +297,7 @@ function start() {
           next = await mergeRemoteVault(pwd, next);
           await saveEncrypted(pwd, next);
           const hid = await deriveHouseholdRowId(pwd);
-          await pushVaultRow(hid);
+          void pushVaultRow(hid).catch((e) => console.warn("Background sync push:", e));
         } catch (e) {
           console.warn(e);
           showToast("Cloud sync issue — continuing with data on this device.");
@@ -274,6 +308,18 @@ function start() {
     },
     showToast,
   });
+  if (typeof window !== "undefined") {
+    window.__DIET_AUTH_READY__ = true;
+  }
 }
 
-start();
+try {
+  start();
+} catch (err) {
+  console.error(err);
+  if (typeof window !== "undefined" && typeof window.__dietReportLoadFailure === "function") {
+    window.__dietReportLoadFailure(
+      "Could not start the app: " + (err && err.message ? err.message : String(err))
+    );
+  }
+}

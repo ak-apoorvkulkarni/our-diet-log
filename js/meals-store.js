@@ -78,3 +78,36 @@ export function mealsForUser(state, userId) {
 export function sortMealsDesc(meals) {
   return [...meals].sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
 }
+
+/**
+ * Search + filters for All meals (query matches title/notes; dates are local calendar).
+ */
+export function filterMeals(meals, opts) {
+  if (!opts) return [...meals];
+  let list = [...meals];
+  const q = opts.query && String(opts.query).trim().toLowerCase();
+  if (q) {
+    list = list.filter(
+      (m) =>
+        (m.title || "").toLowerCase().includes(q) ||
+        (m.notes || "").toLowerCase().includes(q)
+    );
+  }
+  const uid = opts.userId;
+  if (uid && uid !== "all") {
+    list = list.filter((m) => m.userId === uid);
+  }
+  const cat = opts.category;
+  if (cat && cat !== "all") {
+    list = list.filter((m) => (m.category || "") === cat);
+  }
+  if (opts.from) {
+    const t = new Date(String(opts.from) + "T00:00:00").getTime();
+    list = list.filter((m) => new Date(m.datetime).getTime() >= t);
+  }
+  if (opts.to) {
+    const t = new Date(String(opts.to) + "T23:59:59.999").getTime();
+    list = list.filter((m) => new Date(m.datetime).getTime() <= t);
+  }
+  return list;
+}

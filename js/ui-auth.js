@@ -21,7 +21,7 @@ function hideAuthOverlay(el) {
 
 function formatUnlockError(err) {
   if (err?.name === "OperationError" || err?.name === "InvalidCharacterError") {
-    return "Wrong password — or the saved data is damaged. Try a backup file or reset below.";
+    return "Wrong password, or the saved data is damaged. Try a backup file or reset below.";
   }
   const msg = err?.message || String(err);
   return msg || "Could not unlock.";
@@ -32,7 +32,7 @@ function storageOriginHint() {
   if (typeof location === "undefined") return "";
   const h = location.hostname;
   if (h === "localhost" || h === "127.0.0.1") {
-    return " If you recorded meals on the published site (GitHub Pages), that vault is not stored here — use “Restore backup file” with a JSON from Settings → Download backup on the other address, then unlock.";
+    return ' If you recorded meals on the published site (GitHub Pages), that vault is not stored here. Use "Restore backup file" with a JSON from Settings → Download backup on the other address, then unlock.';
   }
   return "";
 }
@@ -50,6 +50,12 @@ export function initAuthScreen({ onAuthed, showToast }) {
   const errCreate = document.getElementById("auth-error-create");
   const cryptoBanner = document.getElementById("auth-crypto-banner");
   const existingBanner = document.getElementById("auth-existing-banner");
+  const marketingEl = document.getElementById("marketing-landing");
+  const landingEl = document.getElementById("landing-screen");
+  const btnLandingCreate = document.getElementById("btn-landing-create");
+  const btnLandingUnlock = document.getElementById("btn-landing-unlock");
+  const btnAuthBackLanding = document.getElementById("btn-auth-back-landing");
+  const btnLandingBackMarketing = document.getElementById("btn-landing-back-marketing");
 
   const existing = hasStoredVault();
 
@@ -115,6 +121,107 @@ export function initAuthScreen({ onAuthed, showToast }) {
   }
   btnShowUnlock?.addEventListener("click", onToggleUnlock);
   btnShowCreate?.addEventListener("click", onToggleCreate);
+
+  function showMarketingView() {
+    if (errUnlock) errUnlock.textContent = "";
+    if (errCreate) errCreate.textContent = "";
+    if (marketingEl) {
+      marketingEl.hidden = false;
+      marketingEl.removeAttribute("aria-hidden");
+    }
+    if (landingEl) {
+      landingEl.hidden = true;
+      landingEl.setAttribute("aria-hidden", "true");
+    }
+    if (authScreenEl) {
+      authScreenEl.hidden = true;
+      authScreenEl.setAttribute("aria-hidden", "true");
+      authScreenEl.style.removeProperty("display");
+    }
+  }
+
+  function showProductLandingFromMarketing() {
+    if (marketingEl) {
+      marketingEl.hidden = true;
+      marketingEl.setAttribute("aria-hidden", "true");
+    }
+    if (landingEl) {
+      landingEl.hidden = false;
+      landingEl.removeAttribute("aria-hidden");
+    }
+    if (authScreenEl) {
+      authScreenEl.hidden = true;
+      authScreenEl.setAttribute("aria-hidden", "true");
+      authScreenEl.style.removeProperty("display");
+    }
+  }
+
+  function showLandingView() {
+    if (errUnlock) errUnlock.textContent = "";
+    if (errCreate) errCreate.textContent = "";
+    if (landingEl) {
+      landingEl.hidden = false;
+      landingEl.removeAttribute("aria-hidden");
+    }
+    if (authScreenEl) {
+      authScreenEl.hidden = true;
+      authScreenEl.setAttribute("aria-hidden", "true");
+      authScreenEl.style.removeProperty("display");
+    }
+  }
+
+  function showAuthFromLanding(mode) {
+    if (landingEl) {
+      landingEl.hidden = true;
+      landingEl.setAttribute("aria-hidden", "true");
+    }
+    if (authScreenEl) {
+      authScreenEl.hidden = false;
+      authScreenEl.removeAttribute("aria-hidden");
+      authScreenEl.style.removeProperty("display");
+    }
+    const wantsCreate = mode === "create";
+    if (wantsCreate && !existing) {
+      applyAuthMode("create");
+      requestAnimationFrame(() => document.getElementById("password-new")?.focus());
+    } else {
+      applyAuthMode("unlock");
+      requestAnimationFrame(() => document.getElementById("password-unlock")?.focus());
+    }
+  }
+
+  if (!marketingEl && !landingEl && authScreenEl) {
+    authScreenEl.hidden = false;
+    authScreenEl.removeAttribute("aria-hidden");
+  } else if (!marketingEl && landingEl) {
+    landingEl.hidden = false;
+    landingEl.removeAttribute("aria-hidden");
+  }
+
+  document.querySelectorAll(".marketing-open-product").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      showProductLandingFromMarketing();
+    });
+  });
+
+  btnLandingBackMarketing?.addEventListener("click", (e) => {
+    e.preventDefault();
+    showMarketingView();
+  });
+
+  btnLandingCreate?.addEventListener("click", (e) => {
+    e.preventDefault();
+    showAuthFromLanding("create");
+  });
+  btnLandingUnlock?.addEventListener("click", (e) => {
+    e.preventDefault();
+    showAuthFromLanding("unlock");
+  });
+  btnAuthBackLanding?.addEventListener("click", (e) => {
+    e.preventDefault();
+    showLandingView();
+  });
 
   formUnlock?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -242,7 +349,7 @@ export function initAuthScreen({ onAuthed, showToast }) {
       }
       await createVault(p1, createEmptyState());
       const data = await loadDecrypted(p1);
-      showToast("Vault created — your meals are encrypted on this device.");
+      showToast("Vault created. Your meals are encrypted on this device.");
       try {
         await onAuthed(p1, data);
       } catch (inner) {
