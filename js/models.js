@@ -3,8 +3,7 @@
  */
 
 export const DEFAULT_USERS = () => [
-  { id: "u1", name: "Apoorv" },
-  { id: "u2", name: "Aditi" },
+  { id: "u1", name: "You" },
 ];
 
 export function createEmptyState() {
@@ -21,39 +20,6 @@ export function ensureStateShape(raw) {
   if (!Array.isArray(state.users) || state.users.length === 0) state.users = DEFAULT_USERS();
   if (!Array.isArray(state.meals)) state.meals = [];
   return state;
-}
-
-/** Merge two decrypted states (e.g. two phones). Meals by id: newer datetime wins. */
-export function mergeAppState(local, remote) {
-  const a = ensureStateShape(local);
-  const b = ensureStateShape(remote);
-  const byId = new Map();
-  for (const m of b.meals) {
-    if (m?.id) byId.set(m.id, m);
-  }
-  for (const m of a.meals) {
-    if (!m?.id) continue;
-    const r = byId.get(m.id);
-    if (!r) {
-      byId.set(m.id, m);
-      continue;
-    }
-    const t = new Date(m.datetime || 0).getTime();
-    const tr = new Date(r.datetime || 0).getTime();
-    byId.set(m.id, t >= tr ? m : r);
-  }
-  const users = a.users.map((u, i) => {
-    const o = b.users[i];
-    if (!o) return u;
-    const name = (u.name && String(u.name).trim()) || (o.name && String(o.name).trim()) || u.name;
-    return { ...u, name };
-  });
-  return {
-    ...a,
-    version: Math.max(a.version || 1, b.version || 1),
-    users,
-    meals: [...byId.values()].sort((x, y) => new Date(y.datetime) - new Date(x.datetime)),
-  };
 }
 
 export function newMealId() {

@@ -1,5 +1,5 @@
 .DS_Store
 *.log
-.env.supabase
 .cursor/
 Thumbs.db
+*.dmg

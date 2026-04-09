@@ -85,51 +85,6 @@ export async function loadDecrypted(password) {
   throw lastErr;
 }
 
-/**
- * Decrypt vault bytes without reading localStorage (for cloud merge).
- * @param {string|null|undefined} iterationsHint - from Supabase row if known
- */
-export async function decryptVaultFromParts(password, saltB64, payloadRawString, iterationsHint) {
-  const salt = Uint8Array.from(atob(saltB64), (c) => c.charCodeAt(0));
-  let payload;
-  try {
-    payload = JSON.parse(payloadRawString);
-  } catch {
-    return null;
-  }
-  if (!payload?.iv || !payload?.cipherText) return null;
-
-  const hinted =
-    iterationsHint != null && iterationsHint !== ""
-      ? parseInt(String(iterationsHint), 10)
-      : null;
-  const candidates = [
-    ...(hinted != null && !Number.isNaN(hinted) && hinted >= 10000 ? [hinted] : []),
-    ...new Set([getPbkdf2Iterations(), DEFAULT_PBKDF2_ITERATIONS, NEW_VAULT_PBKDF2_ITERATIONS]),
-  ];
-  let lastErr;
-
-  for (const iters of [...new Set(candidates)]) {
-    try {
-      const key = await deriveKeyFromPassword(password, salt, iters);
-      return await decryptJson(key, payload.iv, payload.cipherText);
-    } catch (e) {
-      lastErr = e;
-      if (e?.name === "OperationError") continue;
-      throw e;
-    }
-  }
-  throw lastErr;
-}
-
-export function getVaultSnapshotForSync() {
-  return {
-    salt: localStorage.getItem(KEY_SALT),
-    payload: localStorage.getItem(KEY_PAYLOAD),
-    pbkdf2Iterations: localStorage.getItem(KEY_KDF_ITERS),
-  };
-}
-
 export async function saveEncrypted(password, dataObj) {
   const salt = saltBytesFromStorage();
   if (!salt) throw new Error("Missing salt");

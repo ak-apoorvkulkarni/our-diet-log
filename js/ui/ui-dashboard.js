@@ -6,7 +6,8 @@ import {
   aggregateWeek,
   parseIsoWeek,
   wellnessScore,
-} from "./weekly.js";
+} from "../weekly.js";
+import { isFirebaseConfigured } from "../firebase-config.js";
 
 const SCOPE_KEY = "diet_dashboard_scope";
 
@@ -101,16 +102,30 @@ function updatePersonTabNames(state) {
   if (n2 && u2) n2.textContent = u2.name;
 }
 
+function hasDashboardPartner(state) {
+  if (isFirebaseConfigured()) {
+    return Boolean(
+      typeof window !== "undefined" && window.__DIET_FIREBASE_SESSION__?.hasPartner
+    );
+  }
+  return Boolean(state.users?.some((x) => x.id === "u2"));
+}
+
 export function renderWeeklyDashboard(mount, state, weekCursor) {
   if (!mount) return;
-  const scope = getDashboardScope();
+  const hasPartner = hasDashboardPartner(state);
+  let scope = getDashboardScope();
+  if (!hasPartner) scope = "u1";
   syncScopeTabs(scope);
   updatePersonTabNames(state);
+  // Hide scope selector when solo.
+  const scopeBar = document.querySelector(".dashboard-scope");
+  if (scopeBar) scopeBar.hidden = !hasPartner;
 
   const u1 = state.users.find((x) => x.id === "u1");
   const u2 = state.users.find((x) => x.id === "u2");
-  const name1 = u1?.name || "Apoorv";
-  const name2 = u2?.name || "Aditi";
+  const name1 = u1?.name || "You";
+  const name2 = u2?.name || "Partner";
 
   const labelEl = document.getElementById("week-range-label");
   if (labelEl) {
@@ -118,14 +133,19 @@ export function renderWeeklyDashboard(mount, state, weekCursor) {
     labelEl.textContent = formatRange(agg.from, agg.to);
   }
 
-  if (scope === "all") {
+  if (hasPartner && scope === "all") {
     mount.innerHTML = renderHouseholdDashboard(state, weekCursor, name1, name2);
     return;
   }
 
-  const uid = scope === "u1" ? "u1" : "u2";
-  const personName = scope === "u1" ? name1 : name2;
-  mount.innerHTML = renderIndividualDashboard(state, weekCursor, uid, personName);
+  const uid = scope === "u2" && hasPartner ? "u2" : "u1";
+  const personName = uid === "u2" ? name2 : name1;
+  mount.innerHTML = renderIndividualDashboard(state, weekCursor, uid, personName, {
+    hasPartner,
+    name1,
+    name2,
+    scopeUserId: uid,
+  });
 }
 
 function renderHouseholdDashboard(state, weekCursor, name1, name2) {
@@ -151,6 +171,7 @@ function renderHouseholdDashboard(state, weekCursor, name1, name2) {
     <div class="dash-stack">
     <div class="dash-add-meal">
       <button type="button" class="btn btn--primary dash-add-meal__btn" data-nav="log" data-new-meal="true" aria-label="Add a new meal to your log">Add New Meal</button>
+      <button type="button" class="btn btn--secondary dash-add-meal__btn" data-invite-partner hidden>Invite partner</button>
     </div>
 
     <div class="dash-kpi-grid">
@@ -193,18 +214,38 @@ function renderHouseholdDashboard(state, weekCursor, name1, name2) {
   `;
 }
 
-function renderIndividualDashboard(state, weekCursor, userId, personName) {
+function renderIndividualDashboard(state, weekCursor, userId, personName, meta = {}) {
+  const { hasPartner = false, name1 = "You", name2 = "Partner", scopeUserId = "u1" } = meta;
   const agg = aggregateWeek(state.meals, weekCursor, userId);
   const ws = wellnessScore(agg.health, agg.rated);
 
   const simpleBars = renderSimpleCalories(agg.calByDay, agg.dayLabels);
 
+  const inviteHidden = hasPartner ? "hidden" : "";
+  let sub =
+    "This week — your meals, calories, and ratings only.";
+  let partnerLine = "";
+  if (hasPartner) {
+    if (scopeUserId === "u1") {
+      sub = "This week — your logged meals only.";
+      partnerLine = `<p class="dash-hero__partner">Partner: ${escapeHtml(name2)}</p>`;
+    } else {
+      sub = "This week — their meals and ratings (read-only on their log).";
+    }
+  }
+
   return `
     <div class="dash-stack">
+    <div class="dash-add-meal">
+      <button type="button" class="btn btn--primary dash-add-meal__btn" data-nav="log" data-new-meal="true" aria-label="Add a new meal to your log">Add New Meal</button>
+      <button type="button" class="btn btn--secondary dash-add-meal__btn" data-invite-partner ${inviteHidden}>Invite partner</button>
+      <span class="dash-invite-link" data-invite-link style="display:none"></span>
+    </div>
     <div class="dash-hero dash-hero--solo">
-      <p class="dash-hero__eyebrow">Individual view</p>
+      <p class="dash-hero__eyebrow">${hasPartner ? "Individual view · shared household" : "Individual view"}</p>
       <h3 class="dash-hero__title">${escapeHtml(personName)}</h3>
-      <p class="dash-hero__sub">This week — your meals, calories, and ratings only.</p>
+      ${partnerLine}
+      <p class="dash-hero__sub">${sub}</p>
     </div>
 
     <div class="dash-kpi-grid dash-kpi-grid--solo">

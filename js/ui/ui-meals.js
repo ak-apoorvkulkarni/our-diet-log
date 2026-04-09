@@ -1,15 +1,17 @@
 /**
  * Log meal form + meal grid + edit modal.
  */
-import { addMeal, updateMeal, deleteMeal, sortMealsDesc, filterMeals } from "./meals-store.js";
-import { fileToCompressedDataUrl } from "./image-utils.js";
-import { guessCalories } from "./calorie-estimate.js";
+import { addMeal, updateMeal, deleteMeal, sortMealsDesc, filterMeals } from "../meals-store.js";
+import { fileToCompressedDataUrl } from "../image-utils.js";
+import { guessCalories } from "../calorie-estimate.js";
+import { isFirebaseConfigured } from "../firebase-config.js";
+import { deleteMealImageFirestore, saveMealImageFirestore } from "../firebase-store.js";
 import {
   categoryFromDateAndTimeInputs,
   coerceMealCategorySelect,
   labelForMealCategory,
   categoryFromLocalTime,
-} from "./meal-category.js";
+} from "../meal-category.js";
 
 function escapeHtml(s) {
   const div = document.createElement("div");
@@ -76,7 +78,7 @@ function formatWhen(iso) {
   });
 }
 
-export function renderMealGrid(container, state, { onEdit, userFilter, mealFilters }) {
+export function renderMealGrid(container, state, { onEdit, userFilter, mealFilters, canEditMeal }) {
   if (!container) return;
   let list;
   if (mealFilters) {
@@ -107,13 +109,16 @@ export function renderMealGrid(container, state, { onEdit, userFilter, mealFilte
     return;
   }
   container.innerHTML = `<div class="meal-grid">${list
-    .map(
-      (m) => `
+    .map((m) => {
+      const editable = typeof canEditMeal === "function" ? Boolean(canEditMeal(m)) : true;
+      const btnText = editable ? "Edit details" : "View details";
+      const btnAttrs = editable ? `data-edit="${m.id}"` : `data-edit="${m.id}" disabled`;
+      return `
     <article class="meal-card" data-id="${m.id}">
       <div class="meal-card__img-wrap">
         ${
-          m.imageData
-            ? `<img class="meal-card__img" src="${m.imageData}" alt="">`
+          m.imageUrl || m.imageData
+            ? `<img class="meal-card__img" src="${escapeHtml(m.imageUrl || m.imageData)}" alt="">`
             : `<div class="meal-card__placeholder" aria-hidden="true">📷</div>`
         }
       </div>
@@ -126,10 +131,10 @@ export function renderMealGrid(container, state, { onEdit, userFilter, mealFilte
           ${m.calories != null ? ` · ${m.calories} kcal` : ""}
         </div>
         <div style="margin-bottom:0.5rem">${healthBadge(m.health)}</div>
-        <button type="button" class="btn btn--secondary" data-edit="${m.id}" style="width:100%">Edit details</button>
+        <button type="button" class="btn btn--secondary" ${btnAttrs} style="width:100%">${btnText}</button>
       </div>
     </article>`
-    )
+    })
     .join("")}</div>`;
 
   container.querySelectorAll("[data-edit]").forEach((btn) => {
@@ -142,7 +147,7 @@ function userName(state, userId) {
   return u ? u.name : "Unknown";
 }
 
-export function bindLogForm(state, passwordRef, persist, showToast) {
+export function bindLogForm(state, passwordRef, persist, showToast, onMealSaved) {
   const form = document.getElementById("form-log-meal");
   const preview = document.getElementById("meal-photo-preview");
   const fileInput = document.getElementById("meal-photo");
@@ -280,9 +285,39 @@ export function bindLogForm(state, passwordRef, persist, showToast) {
       health,
       category,
       imageData: pendingImage,
+      imageUrl: null,
     });
+    if (isFirebaseConfigured() && pendingImage) {
+      try {
+        // addMeal prepends the meal, so the newest is at index 0
+        const mealId = state.meals?.[0]?.id;
+        const sess = window.__DIET_FIREBASE_SESSION__ || {};
+        if (sess.uid && mealId) {
+          await saveMealImageFirestore(String(sess.uid), String(mealId), pendingImage);
+          updateMeal(state, mealId, {
+            imageFirestore: true,
+            imageUrl: null,
+            imagePath: null,
+          });
+        }
+      } catch (err) {
+        console.warn(err);
+        showToast(err?.message || "Photo save failed. Saving the meal without a cloud photo.");
+        try {
+          const mealId = state.meals?.[0]?.id;
+          if (mealId) updateMeal(state, mealId, { imageData: null });
+        } catch (e2) {}
+      }
+    }
     await persist(passwordRef());
     showToast("Meal saved.");
+    if (typeof onMealSaved === "function") {
+      try {
+        onMealSaved();
+      } catch (err) {
+        console.warn(err);
+      }
+    }
     form.reset();
     preview.innerHTML = "";
     pendingImage = null;
@@ -322,8 +357,9 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
     editCat.value = coerceMealCategorySelect(meal.category, dateVal, timeVal);
   }
   const prev = document.getElementById("edit-photo-preview");
-  if (meal.imageData) {
-    prev.innerHTML = `<img src="${meal.imageData}" alt="" style="max-height:160px;border-radius:12px">`;
+  const img = meal.imageUrl || meal.imageData;
+  if (img) {
+    prev.innerHTML = `<img src="${escapeHtml(img)}" alt="" style="max-height:160px;border-radius:12px">`;
   } else {
     prev.innerHTML = "";
   }
@@ -335,12 +371,14 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
   const fileInput = document.getElementById("edit-photo");
   fileInput.value = "";
   let newImage = meal.imageData;
+  let newImageUrl = meal.imageUrl || null;
 
   const onFile = async () => {
     const f = fileInput.files?.[0];
     if (!f) return;
     try {
       newImage = await fileToCompressedDataUrl(f);
+      newImageUrl = null;
       prev.innerHTML = `<img src="${newImage}" alt="" style="max-height:160px;border-radius:12px">`;
     } catch (err) {
       showToast(err.message);
@@ -400,11 +438,29 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
       health,
       category: coerceMealCategorySelect(document.getElementById("edit-category")?.value, date, time),
       imageData: newImage,
+      imageUrl: newImageUrl,
     });
     if (!updated) {
       showToast("That meal is no longer in your log — close and refresh the list.");
       close();
       return;
+    }
+    if (isFirebaseConfigured() && newImage) {
+      try {
+        const sess = window.__DIET_FIREBASE_SESSION__ || {};
+        if (sess.uid) {
+          await saveMealImageFirestore(String(sess.uid), String(meal.id), newImage);
+          updateMeal(state, meal.id, {
+            imageFirestore: true,
+            imageUrl: null,
+            imagePath: null,
+          });
+        }
+      } catch (err) {
+        console.warn(err);
+        showToast(err?.message || "Photo save failed. Saving without a cloud photo.");
+        updateMeal(state, meal.id, { imageData: null, imageUrl: null, imagePath: null, imageFirestore: false });
+      }
     }
     await persist(passwordRef());
     showToast("Meal updated.");
@@ -413,6 +469,10 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
 
   document.getElementById("btn-delete-meal").onclick = async () => {
     if (!confirm("Delete this meal?")) return;
+    if (isFirebaseConfigured() && meal.imageFirestore) {
+      const sess = window.__DIET_FIREBASE_SESSION__ || {};
+      if (sess.uid) await deleteMealImageFirestore(String(sess.uid), String(meal.id));
+    }
     deleteMeal(state, meal.id);
     await persist(passwordRef());
     showToast("Meal deleted.");

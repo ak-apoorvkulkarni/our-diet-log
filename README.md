@@ -10,11 +10,11 @@
 
 आहार Tracker is a simple web app for couples or housemates who want one place to log meals together. Add photos, optional calories, and a quick health rating (healthy, okay, or not so great). See weekly dashboards per person and for your household: trends, calories, a wellness-style score, and gentle suggestions based on what you logged.
 
-No accounts on our servers. Your data lives on your devices, locked behind a password you choose.
+Sign in with Google. Your data is stored in Firebase and shared with a partner only after you invite them.
 
 ## Why we built it
 
-**Privacy first.** Meal logs can feel personal. This app keeps entries encrypted in the browser so nothing readable sits in plain text on your phone or laptop.
+**Privacy first.** Meal logs can feel personal. Access is protected by Google sign in, and cloud data is locked down with Firestore security rules.
 
 **Built for two.** Names, weekly views, and insights are tuned for a small household, not a crowd.
 
@@ -25,14 +25,27 @@ No accounts on our servers. Your data lives on your devices, locked behind a pas
 - Log meals with photos, notes, optional calories, and health ratings  
 - See household and per-person weekly dashboards  
 - Get calorie hints from food names (with optional richer nutrition lookup)  
-- Back up an encrypted file and restore on another device  
-- Optional cloud sync between phones via Supabase (setup described in the repo)
+- Share a household dashboard by inviting your partner  
+- Works across devices with Firebase cloud storage
 
 ## Try it
 
-Use the **[live site](https://ak-apoorvkulkarni.github.io/our-diet-log/)** on desktop or mobile. Pick a strong password: it protects your local encrypted data.
+Use the **[live site](https://ak-apoorvkulkarni.github.io/our-diet-log/)** on desktop or mobile. Sign in with Google, then optionally invite your partner to share one household dashboard.
 
-Developers who want to run or fork the project locally can serve the folder with any static file server (for example `npm start`, `bash serve.sh`, or `python3 -m http.server 8080`) and open the local URL. Cloud sync setup is documented in [`CLOUD_SYNC.md`](./CLOUD_SYNC.md).
+Developers who want to run or fork the project locally can serve the folder with any static file server (for example `npm start`, `bash serve.sh`, or `python3 -m http.server 8080`) and open the local URL.
+
+## Firebase setup (required)
+
+1. Create a Firebase project.
+2. Enable Authentication, then enable the Google provider.
+3. Add authorized domains in Firebase Auth for:
+   - `localhost`
+   - your GitHub Pages domain (for example `ak-apoorvkulkarni.github.io`)
+4. Create a Firestore database.
+5. Deploy the included Firestore rules:
+   - `firebase.json`
+   - `firestore.rules`
+6. In `index.html`, set `window.__DIET_FIREBASE_CONFIG__` with your Firebase web app config values.
 
 ## Project layout
 
@@ -40,10 +53,8 @@ Developers who want to run or fork the project locally can serve the folder with
 |------|---------|
 | `index.html` | App shell, marketing page, auth, views |
 | `css/` | Design tokens, layout, components, auth, dashboard, insights |
-| `js/` | Crypto, storage, UI modules, `app.js` entry |
+| `js/` | UI modules, Firebase auth and storage, `app.js` entry |
 | `assets/` | Images (for example `logo.png`) |
-| `scripts/` | Node helpers (for example Supabase config injection) |
-| `supabase/` | SQL schema for optional cloud sync |
 
 ## Open source
 

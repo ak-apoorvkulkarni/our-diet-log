@@ -1,16 +1,15 @@
 /**
  * Login / first-time setup screen.
  */
-import { createEmptyState } from "./models.js";
+import { createEmptyState } from "../models.js";
 import {
   hasStoredVault,
   createVault,
   loadDecrypted,
   clearVault,
   applyBackupToLocalStorage,
-} from "./storage.js";
-import { getWebCryptoBlockReason, localStorageAvailable } from "./crypto-env.js";
-import { hydrateLocalFromCloudIfEmpty } from "./sync-remote.js";
+} from "../storage.js";
+import { getWebCryptoBlockReason, localStorageAvailable } from "../crypto-env.js";
 
 function hideAuthOverlay(el) {
   if (!el) return;
@@ -248,7 +247,6 @@ export function initAuthScreen({ onAuthed, showToast }) {
     }
     try {
       await new Promise((r) => setTimeout(r, 0));
-      await hydrateLocalFromCloudIfEmpty(pwd);
       const data = await loadDecrypted(pwd);
       if (!data) {
         errUnlock.textContent =
@@ -332,7 +330,6 @@ export function initAuthScreen({ onAuthed, showToast }) {
     }
     try {
       await new Promise((r) => setTimeout(r, 0));
-      await hydrateLocalFromCloudIfEmpty(p1);
       if (hasStoredVault()) {
         const data = await loadDecrypted(p1);
         showToast("Loaded your shared log from the cloud.");

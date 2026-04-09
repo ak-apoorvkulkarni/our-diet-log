@@ -119,7 +119,10 @@
 
 .dash-add-meal {
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
   justify-content: stretch;
+  align-items: center;
 }
 
 .dash-add-meal__btn {
@@ -151,14 +154,15 @@
   gap: var(--space-xs);
   margin-bottom: var(--space-xl);
   padding: var(--space-xs);
-  background: linear-gradient(
-    145deg,
-    var(--bg-elevated) 0%,
-    color-mix(in srgb, var(--bg-elevated) 92%, var(--amber-soft)) 100%
-  );
+  background: var(--bg-elevated);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
+}
+
+/* `display: flex` would override the native [hidden] rule; solo mode must hide the bar. */
+.dashboard-scope[hidden] {
+  display: none !important;
 }
 
 .dashboard-scope__btn {
@@ -181,7 +185,7 @@
 }
 
 .dashboard-scope__btn.is-active {
-  background: linear-gradient(180deg, var(--accent-soft), color-mix(in srgb, var(--accent-soft) 85%, var(--bg-muted)));
+  background: var(--accent-soft);
   color: var(--accent);
   box-shadow: inset 0 0 0 1px rgba(63, 111, 94, 0.25);
   transform: none;
@@ -196,14 +200,14 @@
 .dash-hero {
   margin-bottom: var(--space-xl);
   padding: var(--space-lg) var(--space-xl);
-  background: linear-gradient(135deg, var(--accent-soft) 0%, var(--bg-elevated) 55%, var(--amber-soft) 130%);
+  background: var(--bg-elevated);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-md);
 }
 
 .dash-hero--solo {
-  background: linear-gradient(135deg, var(--sage-soft) 0%, var(--bg-elevated) 55%, var(--accent-soft) 130%);
+  background: var(--bg-elevated);
 }
 
 .dash-hero__eyebrow {
@@ -222,6 +226,13 @@
   letter-spacing: -0.03em;
   margin: 0 0 var(--space-sm);
   line-height: 1.2;
+}
+
+.dash-hero__partner {
+  margin: 0 0 var(--space-sm);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .dash-hero__sub {
@@ -380,8 +391,7 @@
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  background: var(--bg-base);
+  background: transparent;
 }
 
 .dash-people-table {
@@ -549,68 +559,5 @@
   border-radius: 4px;
 }
 
-/* —— Dark: minimal “dashboard” chrome (flat surfaces, type-led sections) —— */
-@media (prefers-color-scheme: dark) {
-  .dashboard-scope {
-    background: var(--bg-muted);
-    border: 1px solid var(--border);
-    box-shadow: none;
-  }
-
-  .dashboard-scope__btn.is-active {
-    background: var(--bg-elevated);
-    color: var(--text-primary);
-    box-shadow: inset 0 0 0 1px var(--border-strong);
-  }
-
-  .dash-hero,
-  .dash-hero--solo {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    box-shadow: none;
-  }
-
-  .dash-kpi {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    box-shadow: none;
-  }
-
-  .dash-kpi:hover {
-    box-shadow: none;
-    transform: none;
-    border-color: var(--border-strong);
-  }
-
-  .dash-people-table-wrap {
-    background: var(--bg-elevated);
-    border-color: var(--border);
-  }
-
-  .dash-people-table thead th {
-    background: color-mix(in srgb, var(--bg-muted) 70%, var(--bg-elevated));
-  }
-
-  .donut {
-    box-shadow: 0 0 0 1px var(--border);
-  }
-
-  .dash-section-title {
-    font-size: 1.2rem;
-    font-weight: 600;
-    letter-spacing: -0.03em;
-  }
-
-  .week-picker__label {
-    font-family: var(--font-sans);
-    font-size: 1rem;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-  }
-
-  .app-footer {
-    background: var(--bg-base);
-    border-top-color: var(--border);
-  }
-}
+/* Light-only theme: no dark overrides. */
 

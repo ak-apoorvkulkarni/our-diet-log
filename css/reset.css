@@ -18,39 +18,10 @@ body {
   line-height: 1.5;
   color: var(--text-primary);
   background-color: var(--bg-base);
-  background-image:
-    radial-gradient(ellipse 110% 90% at 90% -5%, var(--mesh-glow-1), transparent 52%),
-    radial-gradient(ellipse 95% 75% at -5% 105%, var(--mesh-glow-2), transparent 48%),
-    radial-gradient(ellipse 70% 60% at 45% 55%, var(--mesh-glow-3), transparent 65%);
-  background-attachment: fixed;
   position: relative;
 }
 
-/* Slow drifting mesh — content sits above via .app-shell z-index */
-body::before {
-  content: "";
-  position: fixed;
-  inset: -25%;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse 42% 38% at 58% 28%, var(--mesh-glow-1), transparent),
-    radial-gradient(ellipse 40% 36% at 22% 78%, var(--mesh-glow-2), transparent),
-    radial-gradient(ellipse 35% 30% at 82% 72%, var(--mesh-glow-3), transparent);
-  opacity: 0.88;
-  animation: ambientMesh 24s var(--ease-out-soft) infinite alternate;
-}
-
-@keyframes ambientMesh {
-  0% {
-    transform: translate(0, 0) scale(1);
-    opacity: 0.78;
-  }
-  100% {
-    transform: translate(2.5%, -1.5%) scale(1.04);
-    opacity: 1;
-  }
-}
+/* Flat light theme: no animated mesh background. */
 
 @media (prefers-reduced-motion: reduce) {
   body::before {
@@ -60,21 +31,7 @@ body::before {
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  body {
-    background-image: none;
-  }
-
-  body::before {
-    opacity: 0.12;
-  }
-}
-
-@media (prefers-color-scheme: dark) and (prefers-reduced-motion: reduce) {
-  body::before {
-    opacity: 0.12;
-  }
-}
+/* Light-only theme: no dark overrides. */
 
 img {
   max-width: 100%;

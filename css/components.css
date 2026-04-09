@@ -23,26 +23,18 @@
 }
 
 .btn--primary {
-  background: linear-gradient(155deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 72%, var(--sage)) 100%);
+  background: var(--accent);
   color: white;
   box-shadow: 0 2px 14px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 .btn--primary:hover {
-  background: linear-gradient(155deg, var(--accent-hover) 0%, color-mix(in srgb, var(--accent-hover) 75%, var(--sage)) 100%);
+  background: var(--accent-hover);
   box-shadow: 0 4px 20px color-mix(in srgb, var(--accent) 42%, transparent);
   transform: translateY(-1px);
 }
 
-@media (prefers-color-scheme: dark) {
-  .btn--primary {
-    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.4);
-  }
-
-  .btn--primary:hover {
-    box-shadow: 0 5px 22px rgba(0, 0, 0, 0.5);
-  }
-}
+/* Light-only theme: no dark overrides. */
 
 @media (prefers-reduced-motion: reduce) {
   .btn--primary:hover {
@@ -77,11 +69,7 @@
 }
 
 .card {
-  background: linear-gradient(
-    165deg,
-    var(--bg-elevated) 0%,
-    color-mix(in srgb, var(--bg-elevated) 94%, var(--accent-soft)) 100%
-  );
+  background: var(--bg-elevated);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-md);
@@ -100,19 +88,7 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  .card {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    box-shadow: none;
-  }
-
-  .card:not(.modal__panel):hover {
-    box-shadow: none;
-    transform: none;
-    border-color: var(--border-strong);
-  }
-}
+/* Light-only theme: no dark overrides. */
 
 .card__title {
   font-family: var(--font-display);
@@ -172,6 +148,28 @@
 .security-list strong {
   color: var(--text-primary);
   font-weight: 600;
+}
+
+.partner-linked-list {
+  margin-bottom: 0.75rem;
+}
+
+.partner-linked-list li {
+  margin-bottom: 0.25rem;
+}
+
+.partner-remove-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.35rem;
+}
+
+.partner-remove-row select {
+  flex: 1;
+  min-width: 10rem;
+  max-width: 18rem;
 }
 
 .cal-guess-hint {
@@ -288,7 +286,7 @@
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--border);
-  background: linear-gradient(180deg, var(--bg-elevated) 0%, color-mix(in srgb, var(--bg-elevated) 96%, var(--sage-soft)) 100%);
+  background: var(--bg-elevated);
   box-shadow: var(--shadow-sm);
   transition:
     box-shadow var(--transition-slow),

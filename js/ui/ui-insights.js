@@ -9,8 +9,8 @@ import {
   weekSummaryExtras,
   wellnessScore,
   dateKeyLocal,
-} from "./analytics.js";
-import { renderWeeklySummaryPng } from "./summary-export.js";
+} from "../analytics.js";
+import { renderWeeklySummaryPng } from "../summary-export.js";
 
 function escapeHtml(s) {
   const div = document.createElement("div");

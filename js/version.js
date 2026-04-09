@@ -1,5 +1,5 @@
 /** App version. Bump when you ship meaningful changes. */
-export const APP_VERSION = "1.8.32";
+export const APP_VERSION = "1.8.34";
 
 /** Shown in app footer and available for attribution strings. */
 export const DEVELOPER_NAME = "Apoorv Kulkarni";
