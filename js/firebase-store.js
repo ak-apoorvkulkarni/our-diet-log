@@ -28,15 +28,46 @@ export async function ensureHouseholdExists(householdId, uid) {
 
   const ref = sdk.doc(db, "households", householdId);
   const snap = await sdk.getDoc(ref);
-  if (snap.exists()) return;
+  if (!snap.exists()) {
+    await sdk.setDoc(ref, {
+      members: [uid],
+      slots: { u1: uid },
+      profiles: { [uid]: { name: "" } },
+      createdAt: sdk.serverTimestamp(),
+      updatedAt: sdk.serverTimestamp(),
+    });
+    return;
+  }
 
-  await sdk.setDoc(ref, {
-    members: [uid],
-    slots: { u1: uid },
-    profiles: { [uid]: { name: "" } },
-    createdAt: sdk.serverTimestamp(),
-    updatedAt: sdk.serverTimestamp(),
-  });
+  const d = snap.data() || {};
+  const members = Array.isArray(d.members) ? d.members.map(String) : [];
+  const slots = d.slots && typeof d.slots === "object" ? d.slots : {};
+  const me = String(uid || "");
+  const inMembers = me && members.includes(me);
+  const inSlots =
+    me &&
+    ["u1", "u2", "u3", "u4", "u5", "u6", "u7", "u8"].some((k) => String(slots[k] || "") === me);
+  if (inMembers || inSlots) return;
+
+  // Corrupt / legacy household doc: only self-heal the personal vault id (u_<uid>).
+  if (String(householdId) !== householdIdForUser(uid)) {
+    throw new Error(
+      "Your account is not listed on this household. Sign out, use a fresh invite, or contact support."
+    );
+  }
+  await sdk.setDoc(
+    ref,
+    {
+      members: [uid],
+      slots: { u1: uid },
+      profiles: {
+        ...(typeof d.profiles === "object" && d.profiles ? d.profiles : {}),
+        [uid]: typeof d.profiles === "object" && d.profiles?.[uid] ? d.profiles[uid] : { name: "" },
+      },
+      updatedAt: sdk.serverTimestamp(),
+    },
+    { merge: true }
+  );
 }
 
 /** Household id saved on /users/{uid} after first session or invite join (used on refresh). */

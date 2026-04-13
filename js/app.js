@@ -606,9 +606,20 @@ function start() {
         await hydrateMealImagesForState(user.uid, firebaseMyState);
 
         if (firebasePartnerUid) {
-          firebasePartnerState = await loadUserState(firebasePartnerUid);
-          if (firebasePartnerState) {
-            await hydrateMealImagesForState(firebasePartnerUid, firebasePartnerState);
+          try {
+            firebasePartnerState = await loadUserState(firebasePartnerUid);
+            if (firebasePartnerState) {
+              await hydrateMealImagesForState(firebasePartnerUid, firebasePartnerState);
+            }
+          } catch (pe) {
+            console.warn("Partner state unavailable (continuing solo):", pe);
+            firebasePartnerState = null;
+            const pCode = pe && pe.code ? String(pe.code) : "";
+            if (pCode === "permission-denied") {
+              showToast(
+                "Could not load your partner's data (permissions). You can still use your log; try refresh or ask them to open the app once."
+              );
+            }
           }
         } else {
           firebasePartnerState = null;

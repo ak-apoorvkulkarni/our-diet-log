@@ -62,11 +62,18 @@ service cloud.firestore {
       // - owner can read/write their own state
       // - partner can read (shared dashboard), but cannot write
       allow read: if signedIn() && (request.auth.uid == uid || isLinkedPartnerOf(uid));
+      // Writes: shared households must exist and list the uid. Personal vault id is always u_<firebaseUid>;
+      // allow that path even if the household doc is missing or malformed (solo recovery).
       allow create, update: if signedIn()
         && request.auth.uid == uid
         && request.resource.data.householdId is string
-        && exists(/databases/$(database)/documents/households/$(request.resource.data.householdId))
-        && isHouseholdMember(request.resource.data.householdId, uid);
+        && (
+          request.resource.data.householdId == ("u_" + uid)
+          || (
+            exists(/databases/$(database)/documents/households/$(request.resource.data.householdId))
+            && isHouseholdMember(request.resource.data.householdId, uid)
+          )
+        );
       allow delete: if signedIn() && request.auth.uid == uid;
     }
 
