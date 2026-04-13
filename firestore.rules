@@ -5,13 +5,19 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Returns the household id string for the current caller.
-    // Stored on /users/{uid} documents to enable partner reads without a backend.
-    function myHouseholdId() {
+    // Caller's household id from profile (must match households/{id} membership for partner reads).
+    function callerProfileHouseholdId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.householdId;
+    }
+
+    // Partner reads: both users must appear on the household doc (members or slots).
+    // Do not rely on the partner's /users/{uid}.householdId — it is often missing on older accounts.
+    function sharesHouseholdPerHouseholdDoc(targetUid) {
       return signedIn()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.householdId
-        : null;
+        && callerProfileHouseholdId() is string
+        && isHouseholdMember(callerProfileHouseholdId(), request.auth.uid)
+        && isHouseholdMember(callerProfileHouseholdId(), targetUid);
     }
 
     function householdData(householdId) {
@@ -39,19 +45,10 @@ service cloud.firestore {
       return isHouseholdMember(householdId, request.auth.uid);
     }
 
-    function isLinkedPartnerOf(targetUid) {
-      // Partner read: caller and target user share the same household id.
-      return signedIn()
-        && exists(/databases/$(database)/documents/users/$(targetUid))
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(targetUid)).data.householdId
-          == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.householdId;
-    }
-
     match /users/{uid} {
       // Minimal public profile for linking (householdId, displayName, etc).
-      // Owner writes; partner can read if linked.
-      allow read: if signedIn() && (request.auth.uid == uid || isLinkedPartnerOf(uid));
+      // Owner writes; partner can read if both are on the same household document.
+      allow read: if signedIn() && (request.auth.uid == uid || sharesHouseholdPerHouseholdDoc(uid));
       allow create, update: if signedIn() && request.auth.uid == uid;
       // Owner may delete their own profile doc (account deletion in the app).
       allow delete: if signedIn() && request.auth.uid == uid;
@@ -61,7 +58,7 @@ service cloud.firestore {
       // Per-user state:
       // - owner can read/write their own state
       // - partner can read (shared dashboard), but cannot write
-      allow read: if signedIn() && (request.auth.uid == uid || isLinkedPartnerOf(uid));
+      allow read: if signedIn() && (request.auth.uid == uid || sharesHouseholdPerHouseholdDoc(uid));
       // Writes: shared households must exist and list the uid. Personal vault id is always u_<firebaseUid>;
       // allow that path even if the household doc is missing or malformed (solo recovery).
       allow create, update: if signedIn()
@@ -79,7 +76,7 @@ service cloud.firestore {
 
     // Meal photos on Spark (no Cloud Storage): compressed data URLs per meal (size-limited in app).
     match /users/{uid}/mealImages/{mealId} {
-      allow read: if signedIn() && (request.auth.uid == uid || isLinkedPartnerOf(uid));
+      allow read: if signedIn() && (request.auth.uid == uid || sharesHouseholdPerHouseholdDoc(uid));
       allow create, update: if signedIn() && request.auth.uid == uid;
       allow delete: if signedIn() && request.auth.uid == uid;
     }

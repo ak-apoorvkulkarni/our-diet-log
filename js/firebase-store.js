@@ -397,7 +397,7 @@ export async function acceptInvite(token, uid, displayName, email) {
   );
   await sdk.setDoc(invRef, { usedAt: sdk.serverTimestamp(), usedBy: uid }, { merge: true });
 
-  // So Firestore rules (`isLinkedPartnerOf`) and later sessions find the shared household.
+  // So partner reads (household membership) and later sessions resolve the shared household.
   await ensureUserProfile(uid, {
     householdId,
     name: String(displayName || "").trim(),
