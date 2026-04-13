@@ -14,14 +14,29 @@ service cloud.firestore {
         : null;
     }
 
-    function householdDoc(householdId) {
+    function householdData(householdId) {
       return get(/databases/$(database)/documents/households/$(householdId)).data;
     }
 
-    function isMember(householdId) {
+    // True if uid is listed in members OR appears in slots u1–u8 (covers legacy / inconsistent docs).
+    function isUidInHouseholdSlots(slots, uid) {
+      return slots is map
+        && (slots.u1 == uid || slots.u2 == uid || slots.u3 == uid || slots.u4 == uid
+          || slots.u5 == uid || slots.u6 == uid || slots.u7 == uid || slots.u8 == uid);
+    }
+
+    function isHouseholdMember(householdId, uid) {
       return signedIn()
         && exists(/databases/$(database)/documents/households/$(householdId))
-        && get(/databases/$(database)/documents/households/$(householdId)).data.members.hasAny([request.auth.uid]);
+        && (
+          (householdData(householdId).members is list
+            && householdData(householdId).members.hasAny([uid]))
+          || isUidInHouseholdSlots(householdData(householdId).slots, uid)
+        );
+    }
+
+    function isMember(householdId) {
+      return isHouseholdMember(householdId, request.auth.uid);
     }
 
     function isLinkedPartnerOf(targetUid) {
@@ -51,7 +66,7 @@ service cloud.firestore {
         && request.auth.uid == uid
         && request.resource.data.householdId is string
         && exists(/databases/$(database)/documents/households/$(request.resource.data.householdId))
-        && householdDoc(request.resource.data.householdId).members.hasAny([uid]);
+        && isHouseholdMember(request.resource.data.householdId, uid);
       allow delete: if signedIn() && request.auth.uid == uid;
     }
 

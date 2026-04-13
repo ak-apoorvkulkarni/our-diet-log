@@ -655,8 +655,15 @@ function start() {
         const code = e && e.code ? String(e.code) : "";
         const msg = e && e.message ? String(e.message) : "";
         if (code === "permission-denied") {
+          const cfg =
+            typeof window !== "undefined" && window.__DIET_FIREBASE_CONFIG__
+              ? window.__DIET_FIREBASE_CONFIG__
+              : null;
+          const pid = cfg && cfg.projectId ? String(cfg.projectId) : "";
           showToast(
-            "Firestore permission denied. Confirm Firestore rules are deployed to this project (aahar-edc55) and you are signed in, then refresh."
+            pid
+              ? `Firestore permission denied. Confirm Firestore rules are deployed to project ${pid} and you are signed in, then refresh.`
+              : "Firestore permission denied. Confirm Firestore rules are deployed to this Firebase project and you are signed in, then refresh."
           );
           return;
         }
