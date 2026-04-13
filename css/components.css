@@ -9,6 +9,7 @@
   font-weight: 600;
   font-size: 0.9375rem;
   transition: background var(--transition), border-color var(--transition), transform 0.15s ease;
+  /* Faster taps on mobile (reduces double-tap zoom delay on some browsers) */
   touch-action: manipulation;
 }
 

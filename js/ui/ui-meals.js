@@ -152,6 +152,7 @@ export function bindLogForm(state, passwordRef, persist, showToast, onMealSaved)
   const preview = document.getElementById("meal-photo-preview");
   const fileInput = document.getElementById("meal-photo");
   let pendingImage = null;
+  let logSubmitInFlight = false;
 
   fileInput?.addEventListener("change", async () => {
     const f = fileInput.files?.[0];
@@ -260,6 +261,7 @@ export function bindLogForm(state, passwordRef, persist, showToast, onMealSaved)
 
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (logSubmitInFlight) return;
     const userId = document.getElementById("meal-user").value;
     const title = document.getElementById("meal-title").value;
     const date = document.getElementById("meal-date").value;
@@ -268,68 +270,79 @@ export function bindLogForm(state, passwordRef, persist, showToast, onMealSaved)
     const notes = document.getElementById("meal-notes").value;
     const category = document.getElementById("meal-category")?.value;
     let health = null;
-    const sel = document.querySelector("[data-health-pick].is-selected");
+    const sel = form.querySelector("[data-health-pick].is-selected");
     if (sel) health = sel.getAttribute("data-health-pick");
     if (!health) {
       showToast("Choose Healthy, Neutral, or Unhealthy.");
       return;
     }
 
-    const dt = date && time ? new Date(`${date}T${time}`) : new Date();
-    addMeal(state, {
-      userId,
-      datetime: dt.toISOString(),
-      title,
-      calories,
-      notes,
-      health,
-      category,
-      imageData: pendingImage,
-      imageUrl: null,
-    });
-    if (isFirebaseConfigured() && pendingImage) {
-      try {
-        // addMeal prepends the meal, so the newest is at index 0
-        const mealId = state.meals?.[0]?.id;
-        const sess = window.__DIET_FIREBASE_SESSION__ || {};
-        if (sess.uid && mealId) {
-          await saveMealImageFirestore(String(sess.uid), String(mealId), pendingImage);
-          updateMeal(state, mealId, {
-            imageFirestore: true,
-            imageUrl: null,
-            imagePath: null,
-          });
-        }
-      } catch (err) {
-        console.warn(err);
-        showToast(err?.message || "Photo save failed. Saving the meal without a cloud photo.");
+    const submitBtn = form.querySelector('button[type="submit"]');
+    logSubmitInFlight = true;
+    if (submitBtn) submitBtn.disabled = true;
+    try {
+      const dt = date && time ? new Date(`${date}T${time}`) : new Date();
+      const added = addMeal(state, {
+        userId,
+        datetime: dt.toISOString(),
+        title,
+        calories,
+        notes,
+        health,
+        category,
+        imageData: pendingImage,
+        imageUrl: null,
+      });
+      if (isFirebaseConfigured() && pendingImage) {
         try {
-          const mealId = state.meals?.[0]?.id;
-          if (mealId) updateMeal(state, mealId, { imageData: null });
-        } catch (e2) {}
+          const mealId = added?.id || state.meals?.[0]?.id;
+          const sess = window.__DIET_FIREBASE_SESSION__ || {};
+          if (sess.uid && mealId) {
+            await saveMealImageFirestore(String(sess.uid), String(mealId), pendingImage);
+            updateMeal(state, mealId, {
+              imageFirestore: true,
+              imageUrl: null,
+              imagePath: null,
+            });
+          }
+        } catch (err) {
+          console.warn(err);
+          showToast(err?.message || "Photo save failed. Saving the meal without a cloud photo.");
+          try {
+            const mealId = added?.id || state.meals?.[0]?.id;
+            if (mealId) updateMeal(state, mealId, { imageData: null });
+          } catch (e2) {}
+        }
       }
-    }
-    await persist(passwordRef());
-    showToast("Meal saved.");
-    if (typeof onMealSaved === "function") {
-      try {
-        onMealSaved();
-      } catch (err) {
-        console.warn(err);
+      const saved = await persist(passwordRef());
+      if (!saved) {
+        deleteMeal(state, added.id);
+        return;
       }
+      showToast("Meal saved.");
+      if (typeof onMealSaved === "function") {
+        try {
+          onMealSaved();
+        } catch (err) {
+          console.warn(err);
+        }
+      }
+      form.reset();
+      preview.innerHTML = "";
+      pendingImage = null;
+      const mh = document.getElementById("meal-calories-hint");
+      if (mh) {
+        mh.hidden = true;
+        mh.textContent = "";
+      }
+      document.querySelectorAll("[data-health-pick]").forEach((b) => b.classList.remove("is-selected"));
+      document.getElementById("meal-date").value = todayISODate();
+      document.getElementById("meal-time").value = nowTimeLocal();
+      syncLogCategoryFromInputs();
+    } finally {
+      logSubmitInFlight = false;
+      if (submitBtn) submitBtn.disabled = false;
     }
-    form.reset();
-    preview.innerHTML = "";
-    pendingImage = null;
-    const mh = document.getElementById("meal-calories-hint");
-    if (mh) {
-      mh.hidden = true;
-      mh.textContent = "";
-    }
-    document.querySelectorAll("[data-health-pick]").forEach((b) => b.classList.remove("is-selected"));
-    document.getElementById("meal-date").value = todayISODate();
-    document.getElementById("meal-time").value = nowTimeLocal();
-    syncLogCategoryFromInputs();
   });
 }
 
@@ -407,8 +420,10 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
 
   modal.hidden = false;
 
+  let editSaving = false;
   form.onsubmit = async (e) => {
     e.preventDefault();
+    if (editSaving) return;
     let health = null;
     const hSel = form.querySelector("[data-edit-health].is-selected");
     if (hSel) health = hSel.getAttribute("data-edit-health");
@@ -417,6 +432,10 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
       return;
     }
 
+    const editSubmitBtn = form.querySelector('button[type="submit"]');
+    editSaving = true;
+    if (editSubmitBtn) editSubmitBtn.disabled = true;
+    try {
     const date = document.getElementById("edit-date").value;
     const time = document.getElementById("edit-time").value;
     let dt = meal.datetime;
@@ -462,9 +481,13 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
         updateMeal(state, meal.id, { imageData: null, imageUrl: null, imagePath: null, imageFirestore: false });
       }
     }
-    await persist(passwordRef());
+    if (!(await persist(passwordRef()))) return;
     showToast("Meal updated.");
     close();
+    } finally {
+      editSaving = false;
+      if (editSubmitBtn) editSubmitBtn.disabled = false;
+    }
   };
 
   document.getElementById("btn-delete-meal").onclick = async () => {

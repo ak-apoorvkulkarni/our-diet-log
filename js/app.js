@@ -18,6 +18,7 @@ import {
   removePartner,
   ensureHouseholdExists,
   householdIdForUser,
+  loadUserHouseholdIdFromProfile,
   loadHouseholdMeta,
   loadHouseholdState,
   listHouseholdConnections,
@@ -53,6 +54,21 @@ let firebaseUser = null;
 let firebaseHouseholdId = "";
 let firebaseUserId = "u1";
 
+/** If the same meal id appears twice (e.g. merged household + duplicate save), keep the first occurrence. */
+function dedupeMealsById(meals) {
+  if (!Array.isArray(meals)) return [];
+  const seen = new Set();
+  const out = [];
+  for (const m of meals) {
+    if (!m || m.id == null) continue;
+    const id = String(m.id);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(m);
+  }
+  return out;
+}
+
 function viewState() {
   if (!isFirebaseConfigured()) return appState;
   const mine = firebaseMyState || ensureStateShape(null);
@@ -71,7 +87,7 @@ function viewState() {
       { id: "u1", name: u1Name },
       { id: "u2", name: u2Name },
     ],
-    meals: [...mineMeals, ...partnerMeals],
+    meals: dedupeMealsById([...mineMeals, ...partnerMeals]),
   });
 }
 
@@ -79,27 +95,50 @@ function passwordRef() {
   return sessionPassword;
 }
 
+/** @returns {Promise<boolean>} true if data was written to disk / cloud */
 async function persist() {
+  const FIREBASE_SAVE_TIMEOUT_MS = 45000;
   if (isFirebaseConfigured()) {
-    if (!firebaseUser || !firebaseHouseholdId) return;
+    if (!firebaseUser || !firebaseHouseholdId) {
+      showToast("Not signed in. Refresh and sign in again.");
+      return false;
+    }
     try {
-      await ensureUserProfile(firebaseUser.uid, {
-        householdId: firebaseHouseholdId,
-        name: String(firebaseUser.displayName || ""),
-      });
-      await saveUserState(
-        firebaseUser.uid,
-        firebaseHouseholdId,
-        stripFirebaseMealImagesForSave(firebaseMyState)
-      );
+      await Promise.race([
+        (async () => {
+          await ensureUserProfile(firebaseUser.uid, {
+            householdId: firebaseHouseholdId,
+            name: String(firebaseUser.displayName || ""),
+          });
+          await saveUserState(
+            firebaseUser.uid,
+            firebaseHouseholdId,
+            stripFirebaseMealImagesForSave(firebaseMyState)
+          );
+        })(),
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("SAVE_TIMEOUT")), FIREBASE_SAVE_TIMEOUT_MS);
+        }),
+      ]);
+      return true;
     } catch (e) {
       console.warn("Firebase save failed:", e);
-      showToast("Could not save to cloud. Check your connection and try again.");
+      const msg = e?.message === "SAVE_TIMEOUT" ? "Save timed out. Check your connection and try again." : null;
+      showToast(
+        msg || "Could not save to cloud. Check your connection and try again."
+      );
+      return false;
     }
-    return;
   }
 
-  await saveEncrypted(sessionPassword, appState);
+  try {
+    await saveEncrypted(sessionPassword, appState);
+    return true;
+  } catch (e) {
+    console.warn("Local save failed:", e);
+    showToast(e?.message ? String(e.message) : "Could not save. Try again.");
+    return false;
+  }
 }
 
 function showToast(msg) {
@@ -199,7 +238,11 @@ function renderDashboardView() {
   }
 }
 
+let mainAppInitialized = false;
+
 function initMainApp() {
+  if (mainAppInitialized) return;
+  mainAppInitialized = true;
   const shell = document.getElementById("app-shell");
   if (!shell) {
     throw new Error("Missing #app-shell. index.html may be incomplete.");
@@ -295,7 +338,14 @@ function initMainApp() {
     renderMealsView();
     closeMobileSidebarIfNeeded();
     requestAnimationFrame(() => {
-      document.querySelector(".app-main")?.scrollTo?.(0, 0);
+      const main = document.querySelector(".app-main");
+      if (main) main.scrollTop = 0;
+      document.getElementById("view-meals")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      try {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } catch (e) {
+        window.scrollTo(0, 0);
+      }
     });
   });
 
@@ -325,7 +375,11 @@ function initMainApp() {
           }
         } catch (err) {
           console.warn(err);
-          showToast("Could not create invite link.");
+          showToast(
+            err?.message
+              ? String(err.message)
+              : "Could not create invite link. Check Firestore rules and that you are signed in."
+          );
         }
       })();
       return;
@@ -501,7 +555,8 @@ function start() {
             history.replaceState({}, "", u.toString());
           } catch (e) {}
         } else {
-          firebaseHouseholdId = householdIdForUser(user.uid);
+          const fromProfile = await loadUserHouseholdIdFromProfile(user.uid);
+          firebaseHouseholdId = fromProfile || householdIdForUser(user.uid);
         }
 
         await ensureHouseholdExists(firebaseHouseholdId, user.uid);
@@ -725,7 +780,11 @@ function start() {
               }
             } catch (e) {
               console.warn(e);
-              showToast("Could not create invite link.");
+              showToast(
+                e?.message
+                  ? String(e.message)
+                  : "Could not create invite link. Check Firestore rules and that you are signed in."
+              );
             }
           });
 

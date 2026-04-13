@@ -16,23 +16,38 @@ export function householdIdForUser(uid) {
   return `u_${uid}`;
 }
 
+/**
+ * Create an empty household only if it does not exist yet.
+ * Important: do not merge `members: [uid]` into an existing doc — that would wipe other members
+ * (e.g. after a partner accepts an invite).
+ */
 export async function ensureHouseholdExists(householdId, uid) {
   const fb = await getFirebase();
   if (!fb) throw new Error("Firebase not configured");
   const { sdk, db } = fb;
 
   const ref = sdk.doc(db, "households", householdId);
-  await sdk.setDoc(
-    ref,
-    {
-      members: [uid],
-      slots: { u1: uid },
-      profiles: { [uid]: { name: "" } },
-      createdAt: sdk.serverTimestamp(),
-      updatedAt: sdk.serverTimestamp(),
-    },
-    { merge: true }
-  );
+  const snap = await sdk.getDoc(ref);
+  if (snap.exists()) return;
+
+  await sdk.setDoc(ref, {
+    members: [uid],
+    slots: { u1: uid },
+    profiles: { [uid]: { name: "" } },
+    createdAt: sdk.serverTimestamp(),
+    updatedAt: sdk.serverTimestamp(),
+  });
+}
+
+/** Household id saved on /users/{uid} after first session or invite join (used on refresh). */
+export async function loadUserHouseholdIdFromProfile(uid) {
+  const fb = await getFirebase();
+  if (!fb) return null;
+  const { sdk, db } = fb;
+  const snap = await sdk.getDoc(sdk.doc(db, "users", uid));
+  if (!snap.exists()) return null;
+  const hid = snap.data()?.householdId;
+  return typeof hid === "string" && hid.trim() ? hid.trim() : null;
 }
 
 export async function loadHouseholdMeta(householdId) {
@@ -350,6 +365,12 @@ export async function acceptInvite(token, uid, displayName, email) {
     { merge: true }
   );
   await sdk.setDoc(invRef, { usedAt: sdk.serverTimestamp(), usedBy: uid }, { merge: true });
+
+  // So Firestore rules (`isLinkedPartnerOf`) and later sessions find the shared household.
+  await ensureUserProfile(uid, {
+    householdId,
+    name: String(displayName || "").trim(),
+  });
 
   return householdId;
 }

@@ -23,5 +23,10 @@ export function ensureStateShape(raw) {
 }
 
 export function newMealId() {
-  return `m_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return `m_${crypto.randomUUID()}`;
+    }
+  } catch (e) {}
+  return `m_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`;
 }
