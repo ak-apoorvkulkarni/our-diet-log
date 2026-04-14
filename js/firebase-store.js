@@ -357,7 +357,6 @@ export async function acceptInvite(token, uid, displayName, email) {
   const invSnap = await sdk.getDoc(invRef);
   if (!invSnap.exists()) throw new Error("Invite not found.");
   const inv = invSnap.data();
-  if (inv.usedAt) throw new Error("Invite already used.");
   const expectedEmail = String(inv.toEmail || "").trim().toLowerCase();
   const userEmail = String(email || "").trim().toLowerCase();
   if (expectedEmail && userEmail && expectedEmail !== userEmail) {
@@ -366,6 +365,19 @@ export async function acceptInvite(token, uid, displayName, email) {
 
   const householdId = String(inv.householdId || "");
   if (!householdId) throw new Error("Invite missing household id.");
+  const usedBy = String(inv.usedBy || "");
+  if (inv.usedAt) {
+    // Retry-safe accept: if the same signed-in user opens the invite again,
+    // treat it as already joined and return the linked household.
+    if (usedBy && usedBy === String(uid || "")) {
+      await ensureUserProfile(uid, {
+        householdId,
+        name: String(displayName || "").trim(),
+      });
+      return householdId;
+    }
+    throw new Error("Invite already used by another account. Ask for a fresh invite.");
+  }
 
   const hhRef = sdk.doc(db, "households", householdId);
   const hhSnap = await sdk.getDoc(hhRef);
