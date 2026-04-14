@@ -4,24 +4,16 @@
 import {
   weekDailyByPerson,
   weekHealthRatingCounts,
-  heatmapSeries,
   compareWeekPair,
-  weekSummaryExtras,
   wellnessScore,
+  aggregateWeek,
   dateKeyLocal,
 } from "../analytics.js";
-import { renderWeeklySummaryPng } from "../summary-export.js";
 
 function escapeHtml(s) {
   const div = document.createElement("div");
   div.textContent = s;
   return div.innerHTML;
-}
-
-function formatWeekRange(from, to) {
-  const a = from.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  const b = to.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-  return `${a} – ${b}`;
 }
 
 /** Rounded ceiling for a readable Y-axis max (avoids awkward ticks like 673). */
@@ -178,6 +170,105 @@ function renderPairedWeekTrendLines(weekData, mode, name1, name2) {
     </div>`;
 }
 
+/**
+ * Single trend line for selected person (Mon–Sun).
+ * @param {"kcal" | "meals"} mode
+ * @param {"u1" | "u2"} userId
+ */
+function renderSingleWeekTrendLine(weekData, mode, userId, name) {
+  const { dayLabels, u1Cal, u2Cal, u1N, u2N } = weekData;
+  const userCal = userId === "u2" ? u2Cal : u1Cal;
+  const userMeals = userId === "u2" ? u2N : u1N;
+  const arr = mode === "kcal" ? userCal : userMeals;
+  const dataMax = Math.max(0, ...arr);
+  const yMax = niceYMax(dataMax <= 0 ? (mode === "meals" ? 3 : 200) : dataMax);
+
+  const title = mode === "kcal" ? "Calories / Day" : "Meals / Day";
+  const yFmt = (t) => {
+    const r = Math.round(t);
+    return mode === "kcal" ? r.toLocaleString() : String(r);
+  };
+
+  const H = 280;
+  const padT = 14;
+  const padB = 36;
+  const padL = 28;
+  const padR = 28;
+  const plotW = 572;
+  const svgW = padL + plotW + padR;
+  const innerH = H - padT - padB;
+  const n = dayLabels.length;
+  const xAt = (i) => (n <= 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
+  const yAt = (v) => {
+    const clamped = Math.max(0, Math.min(yMax, v));
+    return padT + innerH - (clamped / yMax) * innerH;
+  };
+
+  const series = arr.map((v, i) => ({ x: xAt(i), y: yAt(v) }));
+  const pathD = pointsToSmoothPath(series);
+  const dots = series
+    .map(
+      (p) =>
+        `<circle class="daybars-trend__dot daybars-trend__dot--a" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="4" aria-hidden="true" />`
+    )
+    .join("");
+
+  const ticks = yAxisTicks(yMax, mode === "meals" ? 4 : 5);
+  const yBottom = padT + innerH;
+  const gridLines = ticks
+    .map((t) => {
+      const y = padT + innerH - (t / yMax) * innerH;
+      const isBase = t === 0;
+      return `<line class="daybars-trend__grid${isBase ? " daybars-trend__grid--base" : ""}" x1="${padL}" y1="${y}" x2="${padL + plotW}" y2="${y}" />`;
+    })
+    .join("");
+
+  const yLabelsHtml = ticks
+    .map((t) => `<span class="daybars-yaxis-labels__tick">${escapeHtml(yFmt(t))}</span>`)
+    .join("");
+
+  const xLabels = dayLabels
+    .map((lab, i) => {
+      const x = xAt(i);
+      return `<text class="daybars-trend__xlabel" x="${x}" y="${H - 8}" text-anchor="middle">${escapeHtml(lab)}</text>`;
+    })
+    .join("");
+
+  const aria =
+    mode === "kcal"
+      ? `Calories per day for ${name}, Mon–Sun`
+      : `Meals per day for ${name}, Mon–Sun`;
+
+  const svg = `
+    <svg class="daybars-trend-svg" viewBox="0 0 ${svgW} ${H}" width="100%" height="100%" preserveAspectRatio="xMinYMid meet" role="img" aria-label="${escapeHtml(aria)}">
+      <line class="daybars-trend__yaxis" x1="${padL}" y1="${padT}" x2="${padL}" y2="${yBottom}" />
+      ${gridLines}
+      ${pathD ? `<path class="daybars-trend__path daybars-trend__path--a" d="${pathD}" />` : ""}
+      ${dots}
+      ${xLabels}
+    </svg>`;
+
+  return `
+    <div class="daybars-card">
+      <div class="insight-graph-header">
+        <h4 class="daybars-card__title">${title}</h4>
+        <div class="daybars-legend">
+          <span><span class="daybars-legend__swatch daybars-legend__swatch--a"></span>${escapeHtml(name)}</span>
+        </div>
+      </div>
+      <div class="insight-graph-body">
+        <div class="daybars-chart daybars-chart--${mode === "kcal" ? "kcal" : "meals"}" style="--trend-pad-t: ${padT}px; --trend-pad-b: ${padB}px;">
+          <div class="daybars-chart-inner">
+            <div class="daybars-yaxis-labels" aria-hidden="true">${yLabelsHtml}</div>
+            <div class="daybars-plot-surface">
+              <div class="daybars-svg-frame">${svg}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
 function healthPiePolar(cx, cy, r, angleRad) {
   return { x: cx + r * Math.cos(angleRad), y: cy + r * Math.sin(angleRad) };
 }
@@ -286,68 +377,120 @@ function heatmapLegendHtml() {
     </div>`;
 }
 
-/** Heatmap grid only (legend is in panel header) */
-function renderHeatmapBody(data) {
-  const { cells } = data;
-  const rows = [];
-  for (let i = 0; i < cells.length; i += 7) {
-    rows.push(cells.slice(i, i + 7));
+function dayStatusFromAverage(avg) {
+  if (avg >= 77.5) return "healthy";
+  if (avg >= 37.5) return "neutral";
+  return "unhealthy";
+}
+
+function dayStatusLabel(kind) {
+  if (kind === "healthy") return "Healthy";
+  if (kind === "neutral") return "Neutral";
+  if (kind === "unhealthy") return "Unhealthy";
+  return "No rated meals";
+}
+
+function dayScoresMap(meals) {
+  const map = new Map();
+  for (const m of meals || []) {
+    const d = new Date(m.datetime);
+    const key = dateKeyLocal(d);
+    if (!map.has(key)) map.set(key, []);
+    if (m.health === "healthy") map.get(key).push(100);
+    else if (m.health === "okay") map.get(key).push(55);
+    else if (m.health === "unhealthy") map.get(key).push(20);
   }
-  const last = rows[rows.length - 1];
-  if (last && last.length < 7) {
-    while (last.length < 7) {
-      last.push({ kind: "empty", title: "" });
+  return map;
+}
+
+function dayStatusFromMap(scoresMap, date) {
+  const scores = scoresMap.get(dateKeyLocal(date)) || [];
+  if (!scores.length) return "unrated";
+  const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+  return dayStatusFromAverage(avg);
+}
+
+/** Monthly calendar grid (Sun-first) */
+function renderMonthCalendarBody(meals, monthCursor) {
+  const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const scoresMap = dayScoresMap(meals);
+  const monthStart = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), 1);
+  const monthEnd = new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 0);
+  const firstWeekday = monthStart.getDay();
+  const totalDays = monthEnd.getDate();
+  const rows = [];
+  let dayNum = 1;
+  while (dayNum <= totalDays) {
+    const week = [];
+    for (let col = 0; col < 7; col++) {
+      if ((rows.length === 0 && col < firstWeekday) || dayNum > totalDays) {
+        week.push({ kind: "empty", day: "" });
+      } else {
+        const d = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), dayNum);
+        const kind = dayStatusFromMap(scoresMap, d);
+        week.push({ kind, day: dayNum, title: `${d.toDateString()}: ${dayStatusLabel(kind)}` });
+        dayNum += 1;
+      }
     }
+    rows.push(week);
   }
   const body = rows
     .map((week) => {
       const cellsHtml = week
         .map((c) => {
           const cls = `heatmap-cell heatmap-cell--${c.kind}`;
-          return `<div class="${cls}" title="${escapeHtml(c.title)}"></div>`;
+          return `<div class="${cls}" title="${escapeHtml(c.title || "")}"><span class="heatmap-cell__day">${c.day || ""}</span></div>`;
         })
         .join("");
       return `<div class="heatmap-row">${cellsHtml}</div>`;
     })
     .join("");
-  return `<div class="insight-graph-body"><div class="heatmap-grid">${body}</div></div>`;
+  const weekdayHeader = weekday.map((d) => `<span class="heatmap-weekday">${d}</span>`).join("");
+  return `<div class="insight-graph-body"><div class="heatmap-grid"><div class="heatmap-weekdays">${weekdayHeader}</div>${body}</div></div>`;
 }
 
-/**
- * Renders into #dashboard-insights-mount on Overview (household scope only for full charts).
- */
+/** Renders into #dashboard-insights-mount on Overview (household + per-person scopes). */
 export function renderDashboardInsights(mount, state, weekCursor, showToast, dashboardScope) {
   if (!mount) return;
-
-  if (dashboardScope !== "all") {
-    mount.innerHTML = `
-      <div class="insight-panel insight-panel--hint">
-        <p class="insight-hint-text">
-          Select <strong>Household</strong> above to see calories and meals by day, the health calendar, and this week vs last week — those use both people’s data together.
-        </p>
-      </div>`;
-    return;
-  }
 
   const u1 = state.users.find((x) => x.id === "u1");
   const u2 = state.users.find((x) => x.id === "u2");
   const name1 = u1?.name || "Person 1";
   const name2 = u2?.name || "Person 2";
+  const isHouseholdScope = dashboardScope === "all";
+  const scopedUserId = dashboardScope === "u2" ? "u2" : "u1";
+  const scopedName = scopedUserId === "u2" ? name2 : name1;
+  const scopedMeals = isHouseholdScope
+    ? state.meals
+    : (state.meals || []).filter((m) => (m.userId === "u2" ? "u2" : "u1") === scopedUserId);
 
-  const weekDaily = weekDailyByPerson(state.meals, weekCursor);
-  const healthCounts = weekHealthRatingCounts(state.meals, weekCursor);
+  const weekDaily = weekDailyByPerson(scopedMeals, weekCursor);
+  const healthCounts = isHouseholdScope
+    ? weekHealthRatingCounts(state.meals, weekCursor)
+    : (() => {
+        const agg = aggregateWeek(scopedMeals, weekCursor);
+        return {
+          healthy: agg.health.healthy,
+          neutral: agg.health.okay,
+          unhealthy: agg.health.unhealthy,
+        };
+      })();
 
-  const heat = heatmapSeries(state.meals, 12);
-  const cmp = compareWeekPair(state.meals, weekCursor);
+  const cmp = isHouseholdScope
+    ? compareWeekPair(state.meals, weekCursor)
+    : (() => {
+        const thisWeek = aggregateWeek(scopedMeals, weekCursor);
+        const prevStart = new Date(weekCursor);
+        prevStart.setDate(prevStart.getDate() - 7);
+        const prevWeek = aggregateWeek(scopedMeals, prevStart);
+        return { thisWeek, prevWeek };
+      })();
   const thisAgg = cmp.thisWeek;
   const prevAgg = cmp.prevWeek;
   const wsThis = wellnessScore(thisAgg.health, thisAgg.rated);
   const wsPrev = wellnessScore(prevAgg.health, prevAgg.rated);
-  const extra = weekSummaryExtras(thisAgg);
-
-  const from = thisAgg.from;
-  const to = thisAgg.to;
-  const weekLabel = formatWeekRange(from, to);
+  const todayStatus = dayStatusFromMap(dayScoresMap(scopedMeals), new Date());
+  const monthLabel = weekCursor.toLocaleDateString(undefined, { month: "short", year: "numeric" });
 
   mount.innerHTML = `
     <div class="dashboard-insights-inner">
@@ -355,10 +498,18 @@ export function renderDashboardInsights(mount, state, weekCursor, showToast, das
 
       <div class="dashboard-insights-charts">
         <div class="insight-panel insight-panel--daybars">
-          ${renderPairedWeekTrendLines(weekDaily, "kcal", name1, name2)}
+          ${
+            isHouseholdScope
+              ? renderPairedWeekTrendLines(weekDaily, "kcal", name1, name2)
+              : renderSingleWeekTrendLine(weekDaily, "kcal", scopedUserId, scopedName)
+          }
         </div>
         <div class="insight-panel insight-panel--daybars">
-          ${renderPairedWeekTrendLines(weekDaily, "meals", name1, name2)}
+          ${
+            isHouseholdScope
+              ? renderPairedWeekTrendLines(weekDaily, "meals", name1, name2)
+              : renderSingleWeekTrendLine(weekDaily, "meals", scopedUserId, scopedName)
+          }
         </div>
         <div class="dashboard-insights-health-row">
           <div class="insight-panel insight-panel--daybars">
@@ -366,10 +517,17 @@ export function renderDashboardInsights(mount, state, weekCursor, showToast, das
           </div>
           <div class="insight-panel insight-panel--heatmap insight-panel--heatmap-bottom insight-panel--stack">
             <div class="insight-graph-header">
-              <h4 class="insight-panel__title">Health calendar</h4>
+              <div class="insight-panel__title-wrap">
+                <h4 class="insight-panel__title">Health calendar</h4>
+                <p class="insight-panel__meta">${escapeHtml(monthLabel)}</p>
+              </div>
               ${heatmapLegendHtml()}
             </div>
-            ${renderHeatmapBody(heat)}
+            <div class="today-status-card" role="status" aria-live="polite">
+              <p class="today-status-card__label">Today's Status</p>
+              <p class="today-status-card__value">${escapeHtml(dayStatusLabel(todayStatus))}</p>
+            </div>
+            ${renderMonthCalendarBody(scopedMeals, weekCursor)}
           </div>
         </div>
       </div>
@@ -399,34 +557,6 @@ export function renderDashboardInsights(mount, state, weekCursor, showToast, das
         </div>
       </div>
 
-      <div class="insight-panel insight-panel--stack">
-        <div class="insight-graph-header">
-          <h4 class="insight-panel__title">Weekly summary</h4>
-        </div>
-        <p class="insight-panel__hint">PNG includes totals only — no meal titles or photos.</p>
-        <ul class="insights-summary-list">
-          <li><strong>Best day (by kcal)</strong> ${escapeHtml(extra.bestDayLabel)}${extra.bestDayKcal != null ? ` (~${extra.bestDayKcal} kcal)` : ""}</li>
-          <li><strong>Most common category</strong> ${escapeHtml(extra.topCategory)} (${extra.topCategoryCount})</li>
-        </ul>
-        <button type="button" class="btn btn--secondary" id="btn-export-summary-png">Download summary as PNG</button>
-      </div>
     </div>
   `;
-
-  const expBtn = mount.querySelector("#btn-export-summary-png");
-  if (expBtn) {
-    expBtn.onclick = async () => {
-      try {
-        const blob = await renderWeeklySummaryPng(state, weekCursor, weekLabel);
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = `diet-summary-${dateKeyLocal(weekCursor)}.png`;
-        a.click();
-        URL.revokeObjectURL(a.href);
-        showToast("Summary image downloaded.");
-      } catch (e) {
-        showToast(e.message || "Could not create image.");
-      }
-    };
-  }
 }

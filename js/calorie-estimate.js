@@ -20,6 +20,7 @@ const COMMON_KEYWORD_KCAL = [
   ["chicken tikka masala", 650],
   ["butter chicken", 620],
   ["palak paneer", 480],
+  ["palak panner", 480],
   ["paneer butter masala", 580],
   ["chicken biryani", 700],
   ["mutton biryani", 720],
@@ -28,7 +29,9 @@ const COMMON_KEYWORD_KCAL = [
   ["pav bhaji", 480],
   ["chole bhature", 620],
   ["chana masala", 380],
+  ["rajma", 360],
   ["rajma chawal", 520],
+  ["dal", 280],
   ["dal makhani", 420],
   ["dal tadka", 280],
   ["masala dosa", 420],
@@ -149,6 +152,13 @@ function normalizeTitle(s) {
     .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function splitMealParts(title) {
+  return String(title || "")
+    .split(/\r?\n|,|;|\s\+\s/g)
+    .map((x) => x.trim())
+    .filter(Boolean);
 }
 
 /** @returns {{ kcal: number, label: string } | null} */
@@ -384,6 +394,43 @@ async function resolveImageElement(imageElement, imageFile) {
  */
 export async function guessCalories({ title, imageElement, imageFile }) {
   const t = String(title || "").trim();
+  const parts = splitMealParts(t);
+
+  if (parts.length > 1) {
+    const hits = [];
+    let total = 0;
+    for (const p of parts) {
+      const hit = getLocalKeywordMatchDetail(p);
+      if (hit) {
+        hits.push({ part: p, source: "Built-in", label: hit.label, kcal: hit.kcal });
+        total += hit.kcal;
+        continue;
+      }
+      try {
+        const usda = await fetchUsdaSearchWithDetail(p);
+        if (usda) {
+          hits.push({ part: p, source: "USDA", label: usda.description, kcal: usda.kcal });
+          total += usda.kcal;
+        }
+      } catch (e) {
+        console.warn("USDA part lookup failed", e);
+      }
+    }
+    if (hits.length >= 2) {
+      const itemsLabel = hits
+        .slice(0, 4)
+        .map((x) => `${x.part} (~${x.kcal})`)
+        .join(", ");
+      const source = hits.some((x) => x.source === "USDA")
+        ? "Built-in list + USDA (multi-item)"
+        : "Built-in list (multi-item)";
+      return {
+        kcal: Math.round(total),
+        source,
+        reason: `Summed matched meal parts: ${itemsLabel}${hits.length > 4 ? ", …" : ""}.`,
+      };
+    }
+  }
 
   if (t) {
     const local = getLocalKeywordMatchDetail(t);

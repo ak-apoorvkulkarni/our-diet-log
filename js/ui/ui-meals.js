@@ -78,6 +78,173 @@ function formatWhen(iso) {
   });
 }
 
+function collectMealItemsFromList(listEl) {
+  if (!listEl) return [];
+  return [...listEl.querySelectorAll(".meal-item-row__input")]
+    .map((el) => String(el.value || "").trim())
+    .filter(Boolean);
+}
+
+function renderMealItemsRows(listEl, values) {
+  if (!listEl) return;
+  const safe = Array.isArray(values) ? values.filter((x) => String(x || "").trim()) : [];
+  const rows = safe.length ? safe : [""];
+  listEl.innerHTML = rows
+    .map(
+      (v, i) => `
+      <div class="meal-item-row">
+        <input type="text" class="meal-item-row__input" placeholder="e.g. Palak Paneer" value="${escapeHtml(v)}" />
+        <button type="button" class="btn btn--ghost btn--sm meal-item-row__remove" ${
+          rows.length === 1 ? "disabled" : ""
+        } aria-label="Remove item">−</button>
+      </div>`
+    )
+    .join("");
+}
+
+function addMealItemRow(listEl) {
+  if (!listEl) return;
+  const row = document.createElement("div");
+  row.className = "meal-item-row";
+  row.innerHTML = `
+    <input type="text" class="meal-item-row__input" placeholder="e.g. Rice" />
+    <button type="button" class="btn btn--ghost btn--sm meal-item-row__remove" aria-label="Remove item">−</button>
+  `;
+  listEl.appendChild(row);
+  syncMealItemRemoveButtons(listEl);
+  row.querySelector(".meal-item-row__input")?.focus();
+}
+
+function syncMealItemRemoveButtons(listEl) {
+  if (!listEl) return;
+  const rows = [...listEl.querySelectorAll(".meal-item-row")];
+  rows.forEach((row) => {
+    const btn = row.querySelector(".meal-item-row__remove");
+    if (!btn) return;
+    btn.disabled = rows.length <= 1;
+  });
+}
+
+function bindMealItemsList(listEl, addBtnEl) {
+  if (!listEl || !addBtnEl) return;
+  if (listEl.dataset.bound === "1") return;
+  listEl.dataset.bound = "1";
+  addBtnEl.addEventListener("click", () => addMealItemRow(listEl));
+  listEl.addEventListener("click", (e) => {
+    const target = e.target;
+    if (!(target instanceof HTMLElement)) return;
+    const btn = target.closest(".meal-item-row__remove");
+    if (!btn) return;
+    const row = btn.closest(".meal-item-row");
+    if (!row) return;
+    row.remove();
+    if (!listEl.querySelector(".meal-item-row")) {
+      renderMealItemsRows(listEl, [""]);
+    }
+    syncMealItemRemoveButtons(listEl);
+  });
+}
+
+function mealTitleDisplay(m) {
+  const items = Array.isArray(m.items) ? m.items.filter(Boolean) : [];
+  if (items.length <= 1) return m.title || items[0] || "Meal";
+  return `${items[0]} +${items.length - 1} item${items.length - 1 === 1 ? "" : "s"}`;
+}
+
+function startOfWeekMondayLocal(d) {
+  const dt = new Date(d);
+  dt.setHours(0, 0, 0, 0);
+  const day = dt.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  dt.setDate(dt.getDate() + diff);
+  return dt;
+}
+
+function dayKeyLocal(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function formatWeekHeading(weekStart) {
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  const startText = weekStart.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const endText = weekEnd.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  return `Week: ${startText} - ${endText}`;
+}
+
+function formatDayHeading(d) {
+  return d.toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function groupMealsByWeekAndDay(meals) {
+  const weeks = [];
+  const weekMap = new Map();
+  for (const meal of meals) {
+    const dt = new Date(meal.datetime);
+    const weekStart = startOfWeekMondayLocal(dt);
+    const weekKey = dayKeyLocal(weekStart);
+    let weekGroup = weekMap.get(weekKey);
+    if (!weekGroup) {
+      weekGroup = {
+        key: weekKey,
+        weekStart,
+        days: [],
+        dayMap: new Map(),
+      };
+      weekMap.set(weekKey, weekGroup);
+      weeks.push(weekGroup);
+    }
+    const dayKey = dayKeyLocal(dt);
+    let dayGroup = weekGroup.dayMap.get(dayKey);
+    if (!dayGroup) {
+      dayGroup = { key: dayKey, date: new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()), meals: [] };
+      weekGroup.dayMap.set(dayKey, dayGroup);
+      weekGroup.days.push(dayGroup);
+    }
+    dayGroup.meals.push(meal);
+  }
+  return weeks;
+}
+
+function renderMealCard(state, m, canEditMeal) {
+  const editable = typeof canEditMeal === "function" ? Boolean(canEditMeal(m)) : true;
+  const btnText = editable ? "Edit details" : "View details";
+  const btnAttrs = editable ? `data-edit="${m.id}"` : `data-edit="${m.id}" disabled`;
+  const imageSrc = m.imageUrl || m.imageData;
+  return `
+    <article class="meal-card${imageSrc ? " meal-card--has-thumb" : ""}" data-id="${m.id}">
+      <div class="meal-card__body">
+        ${
+          imageSrc
+            ? `<button type="button" class="meal-card__thumb-btn" data-meal-image="${escapeHtml(imageSrc)}" aria-label="View meal photo"><img class="meal-card__thumb" src="${escapeHtml(imageSrc)}" alt=""></button>`
+            : ""
+        }
+        <h3 class="meal-card__title">${escapeHtml(mealTitleDisplay(m))}</h3>
+        ${
+          Array.isArray(m.items) && m.items.length > 1
+            ? `<div class="meal-card__items">${escapeHtml(m.items.join(", "))}</div>`
+            : ""
+        }
+        <div class="meal-card__meta">
+          ${escapeHtml(userName(state, m.userId))} · ${escapeHtml(
+            labelForMealCategory(m.category || categoryFromLocalTime(new Date(m.datetime)))
+          )} · ${formatWhen(m.datetime)}
+          ${m.calories != null ? ` · ${m.calories} kcal` : ""}
+        </div>
+        <div style="margin-bottom:0.5rem">${healthBadge(m.health)}</div>
+        <button type="button" class="btn btn--secondary" ${btnAttrs} style="width:100%">${btnText}</button>
+      </div>
+    </article>`;
+}
+
 export function renderMealGrid(container, state, { onEdit, userFilter, mealFilters, canEditMeal }) {
   if (!container) return;
   let list;
@@ -108,38 +275,83 @@ export function renderMealGrid(container, state, { onEdit, userFilter, mealFilte
       </div>`;
     return;
   }
-  container.innerHTML = `<div class="meal-grid">${list
-    .map((m) => {
-      const editable = typeof canEditMeal === "function" ? Boolean(canEditMeal(m)) : true;
-      const btnText = editable ? "Edit details" : "View details";
-      const btnAttrs = editable ? `data-edit="${m.id}"` : `data-edit="${m.id}" disabled`;
-      return `
-    <article class="meal-card" data-id="${m.id}">
-      <div class="meal-card__img-wrap">
-        ${
-          m.imageUrl || m.imageData
-            ? `<img class="meal-card__img" src="${escapeHtml(m.imageUrl || m.imageData)}" alt="">`
-            : `<div class="meal-card__placeholder" aria-hidden="true">📷</div>`
-        }
-      </div>
-      <div class="meal-card__body">
-        <h3 class="meal-card__title">${escapeHtml(m.title)}</h3>
-        <div class="meal-card__meta">
-          ${escapeHtml(userName(state, m.userId))} · ${escapeHtml(
-            labelForMealCategory(m.category || categoryFromLocalTime(new Date(m.datetime)))
-          )} · ${formatWhen(m.datetime)}
-          ${m.calories != null ? ` · ${m.calories} kcal` : ""}
-        </div>
-        <div style="margin-bottom:0.5rem">${healthBadge(m.health)}</div>
-        <button type="button" class="btn btn--secondary" ${btnAttrs} style="width:100%">${btnText}</button>
-      </div>
-    </article>`
-    })
+  const grouped = groupMealsByWeekAndDay(list);
+  container.innerHTML = `<div class="meal-log-groups">${grouped
+    .map(
+      (week) => `
+      <section class="meal-log-week">
+        <h3 class="meal-log-week__title">${escapeHtml(formatWeekHeading(week.weekStart))}</h3>
+        ${week.days
+          .map(
+            (day) => `
+            <div class="meal-log-day">
+              <h4 class="meal-log-day__title">${escapeHtml(formatDayHeading(day.date))}</h4>
+              <div class="meal-grid">${day.meals.map((m) => renderMealCard(state, m, canEditMeal)).join("")}</div>
+            </div>`
+          )
+          .join("")}
+      </section>`
+    )
     .join("")}</div>`;
 
   container.querySelectorAll("[data-edit]").forEach((btn) => {
     btn.addEventListener("click", () => onEdit(btn.getAttribute("data-edit")));
   });
+  container.querySelectorAll("[data-meal-image]").forEach((btn) => {
+    btn.addEventListener("click", () => showMealImageOverlay(btn.getAttribute("data-meal-image")));
+  });
+}
+
+function ensureMealImageOverlay() {
+  let overlay = document.getElementById("meal-image-overlay");
+  if (overlay) return overlay;
+  overlay = document.createElement("div");
+  overlay.id = "meal-image-overlay";
+  overlay.className = "meal-image-overlay";
+  overlay.hidden = true;
+  overlay.innerHTML = `
+    <div class="meal-image-overlay__backdrop" data-close-meal-image="1"></div>
+    <figure class="meal-image-overlay__panel" role="dialog" aria-modal="true" aria-label="Meal photo preview">
+      <button type="button" class="meal-image-overlay__close" data-close-meal-image="1" aria-label="Close image preview">×</button>
+      <img class="meal-image-overlay__img" alt="Meal photo preview">
+    </figure>
+  `;
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", (e) => {
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest("[data-close-meal-image]")) {
+      hideMealImageOverlay();
+    }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !overlay.hidden) {
+      hideMealImageOverlay();
+    }
+  });
+  return overlay;
+}
+
+function showMealImageOverlay(src) {
+  if (!src) return;
+  const overlay = ensureMealImageOverlay();
+  const img = overlay.querySelector(".meal-image-overlay__img");
+  if (img instanceof HTMLImageElement) {
+    img.src = src;
+  }
+  overlay.hidden = false;
+  overlay.setAttribute("aria-hidden", "false");
+  document.body.style.overflow = "hidden";
+}
+
+function hideMealImageOverlay() {
+  const overlay = document.getElementById("meal-image-overlay");
+  if (!overlay) return;
+  const img = overlay.querySelector(".meal-image-overlay__img");
+  if (img instanceof HTMLImageElement) img.src = "";
+  overlay.hidden = true;
+  overlay.setAttribute("aria-hidden", "true");
+  document.body.style.overflow = "";
 }
 
 function userName(state, userId) {
@@ -153,6 +365,10 @@ export function bindLogForm(state, passwordRef, persist, showToast, onMealSaved)
   const fileInput = document.getElementById("meal-photo");
   let pendingImage = null;
   let logSubmitInFlight = false;
+  const mealItemsList = document.getElementById("meal-items-list");
+  const mealItemsAddBtn = document.getElementById("btn-add-meal-item");
+  bindMealItemsList(mealItemsList, mealItemsAddBtn);
+  renderMealItemsRows(mealItemsList, [""]);
 
   fileInput?.addEventListener("change", async () => {
     const f = fileInput.files?.[0];
@@ -182,7 +398,7 @@ export function bindLogForm(state, passwordRef, persist, showToast, onMealSaved)
   wireGuessCaloriesButton(
     "btn-guess-calories",
     {
-      getTitle: () => document.getElementById("meal-title"),
+      getTitle: () => ({ value: collectMealItemsFromList(mealItemsList).join("\n") }),
       getCaloriesInput: () => document.getElementById("meal-calories"),
       getHintEl: () => document.getElementById("meal-calories-hint"),
       getPreviewImg: () => document.querySelector("#meal-photo-preview img"),
@@ -194,7 +410,9 @@ export function bindLogForm(state, passwordRef, persist, showToast, onMealSaved)
   wireGuessCaloriesButton(
     "btn-guess-calories-edit",
     {
-      getTitle: () => document.getElementById("edit-title"),
+      getTitle: () => ({
+        value: collectMealItemsFromList(document.getElementById("edit-meal-items-list")).join("\n"),
+      }),
       getCaloriesInput: () => document.getElementById("edit-calories"),
       getHintEl: () => document.getElementById("edit-calories-hint"),
       getPreviewImg: () => document.querySelector("#edit-photo-preview img"),
@@ -233,8 +451,7 @@ export function bindLogForm(state, passwordRef, persist, showToast, onMealSaved)
     pendingImage = null;
     if (preview) preview.innerHTML = "";
     if (fileInput) fileInput.value = "";
-    const mealTitle = document.getElementById("meal-title");
-    if (mealTitle) mealTitle.value = "";
+    renderMealItemsRows(mealItemsList, [""]);
     const mealCal = document.getElementById("meal-calories");
     if (mealCal) mealCal.value = "";
     const mealNotes = document.getElementById("meal-notes");
@@ -255,7 +472,7 @@ export function bindLogForm(state, passwordRef, persist, showToast, onMealSaved)
   window.addEventListener("diet-open-new-meal", () => {
     prepareNewMealEntry();
     requestAnimationFrame(() => {
-      document.getElementById("meal-title")?.focus();
+      mealItemsList?.querySelector(".meal-item-row__input")?.focus();
     });
   });
 
@@ -263,7 +480,12 @@ export function bindLogForm(state, passwordRef, persist, showToast, onMealSaved)
     e.preventDefault();
     if (logSubmitInFlight) return;
     const userId = document.getElementById("meal-user").value;
-    const title = document.getElementById("meal-title").value;
+    const items = collectMealItemsFromList(mealItemsList);
+    if (!items.length) {
+      showToast("Add at least one food item.");
+      mealItemsList?.querySelector(".meal-item-row__input")?.focus();
+      return;
+    }
     const date = document.getElementById("meal-date").value;
     const time = document.getElementById("meal-time").value;
     const calories = document.getElementById("meal-calories").value;
@@ -285,7 +507,8 @@ export function bindLogForm(state, passwordRef, persist, showToast, onMealSaved)
       const added = addMeal(state, {
         userId,
         datetime: dt.toISOString(),
-        title,
+        title: items[0],
+        items,
         calories,
         notes,
         health,
@@ -330,6 +553,7 @@ export function bindLogForm(state, passwordRef, persist, showToast, onMealSaved)
       form.reset();
       preview.innerHTML = "";
       pendingImage = null;
+      renderMealItemsRows(mealItemsList, [""]);
       const mh = document.getElementById("meal-calories-hint");
       if (mh) {
         mh.hidden = true;
@@ -355,7 +579,13 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
   const timeVal = safeTimeInputForEdit(meal.datetime);
   document.getElementById("edit-meal-id").value = meal.id;
   document.getElementById("edit-user").value = meal.userId;
-  document.getElementById("edit-title").value = meal.title;
+  const editMealItemsList = document.getElementById("edit-meal-items-list");
+  const editMealItemsAddBtn = document.getElementById("btn-add-edit-meal-item");
+  bindMealItemsList(editMealItemsList, editMealItemsAddBtn);
+  renderMealItemsRows(
+    editMealItemsList,
+    Array.isArray(meal.items) && meal.items.length ? meal.items : [meal.title]
+  );
   document.getElementById("edit-date").value = dateVal;
   document.getElementById("edit-time").value = timeVal;
   document.getElementById("edit-calories").value = meal.calories ?? "";
@@ -449,8 +679,9 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
     }
 
     const updated = updateMeal(state, meal.id, {
+      items: collectMealItemsFromList(editMealItemsList),
       userId: document.getElementById("edit-user").value,
-      title: document.getElementById("edit-title").value,
+      title: collectMealItemsFromList(editMealItemsList)[0] || meal.title,
       datetime: dt,
       calories: document.getElementById("edit-calories").value,
       notes: document.getElementById("edit-notes").value,

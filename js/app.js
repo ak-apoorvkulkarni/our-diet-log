@@ -442,6 +442,9 @@ function initMainApp() {
 }
 
 function start() {
+  // Security: never bypass authentication in runtime builds.
+  // App initialization always flows through Firebase auth or local unlock.
+
   // Firebase mode: Google sign-in + Firestore persistence.
   if (isFirebaseConfigured()) {
     const marketingEl = document.getElementById("marketing-landing");

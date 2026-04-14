@@ -17,14 +17,27 @@ function normalizeCategory(c) {
   return null;
 }
 
+function normalizeMealItems(items, fallbackTitle) {
+  const src = Array.isArray(items) ? items : [];
+  const cleaned = src
+    .map((x) => String(x || "").trim())
+    .filter(Boolean);
+  if (cleaned.length > 0) return cleaned;
+  const fb = String(fallbackTitle || "").trim();
+  return fb ? [fb] : [];
+}
+
 export function addMeal(state, meal) {
   const id = newMealId();
   const dtIso = meal.datetime || new Date().toISOString();
+  const items = normalizeMealItems(meal.items, meal.title);
+  const primaryTitle = items[0] || String(meal.title || "").trim() || "Meal";
   const row = {
     id,
     userId: meal.userId,
     datetime: dtIso,
-    title: (meal.title || "").trim() || "Meal",
+    title: primaryTitle,
+    items,
     notes: (meal.notes || "").trim(),
     calories: meal.calories != null && meal.calories !== "" ? Number(meal.calories) : null,
     health: meal.health ?? null,
@@ -41,10 +54,19 @@ export function updateMeal(state, id, patch) {
   const i = state.meals.findIndex((m) => m.id === id);
   if (i === -1) return null;
   const cur = state.meals[i];
+  const patchItemsProvided = patch.items !== undefined;
+  const nextItems = patchItemsProvided
+    ? normalizeMealItems(patch.items, patch.title ?? cur.title)
+    : Array.isArray(cur.items) && cur.items.length
+      ? cur.items
+      : normalizeMealItems([], cur.title);
+  const patchTitle = patch.title != null ? String(patch.title).trim() : null;
+  const nextTitle = patchTitle || nextItems[0] || cur.title || "Meal";
   const next = {
     ...cur,
     ...patch,
-    title: patch.title != null ? String(patch.title).trim() || cur.title : cur.title,
+    title: nextTitle,
+    items: nextItems,
     notes: patch.notes != null ? String(patch.notes).trim() : cur.notes,
     calories:
       patch.calories === "" || patch.calories === undefined
@@ -90,6 +112,7 @@ export function filterMeals(meals, opts) {
     list = list.filter(
       (m) =>
         (m.title || "").toLowerCase().includes(q) ||
+        (Array.isArray(m.items) ? m.items.join(" ").toLowerCase() : "").includes(q) ||
         (m.notes || "").toLowerCase().includes(q)
     );
   }

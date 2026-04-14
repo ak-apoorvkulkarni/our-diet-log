@@ -79,7 +79,7 @@
           </div>
           <div class="dashboard-scope" role="tablist" aria-label="Dashboard scope" hidden>
             <button type="button" class="dashboard-scope__btn is-active" data-dashboard-scope="all" role="tab" aria-selected="true">
-              Household
+              Dashboard
             </button>
             <button type="button" class="dashboard-scope__btn" data-dashboard-scope="u1" role="tab" aria-selected="false">
               <span data-scope-name="u1">You</span>
@@ -101,8 +101,10 @@
                 <select id="meal-user" required></select>
               </div>
               <div class="field">
-                <label for="meal-title">What did you eat?</label>
-                <input id="meal-title" type="text" placeholder="e.g. Dal, rice, salad; masala dosa" required />
+                <label>What did you eat?</label>
+                <div id="meal-items-list" class="meal-items-list"></div>
+                <button type="button" class="btn btn--secondary btn--sm meal-items-add-btn" id="btn-add-meal-item">+ Add item</button>
+                <p class="field-hint">Add multiple foods in one meal. Calories guess uses all added items.</p>
               </div>
               <div class="grid-2">
                 <div class="field">
@@ -302,8 +304,10 @@
             <select id="edit-user"></select>
           </div>
           <div class="field">
-            <label for="edit-title">What</label>
-            <input id="edit-title" type="text" placeholder="e.g. Palak paneer, roti, salad" required />
+            <label>What</label>
+            <div id="edit-meal-items-list" class="meal-items-list"></div>
+            <button type="button" class="btn btn--secondary btn--sm meal-items-add-btn" id="btn-add-edit-meal-item">+ Add item</button>
+            <p class="field-hint">Add one food per row for better calorie estimates.</p>
           </div>
             <div class="grid-2">
             <div class="field">

@@ -61,29 +61,6 @@ function wellnessKpiCard(value) {
     </div>`;
 }
 
-/** Taller bars for small values vs week max (sqrt) + minimum visible slice when kcal &gt; 0 */
-function barFillPct(value, weekMax) {
-  if (weekMax <= 0 || value <= 0) return 0;
-  const raw = Math.sqrt(value / weekMax) * 100;
-  return Math.min(100, Math.round(Math.max(raw, 10)));
-}
-
-function renderSimpleCalories(calByDay, labels) {
-  const max = Math.max(1, ...calByDay);
-  return labels
-    .map((label, i) => {
-      const cals = calByDay[i] || 0;
-      const pct = barFillPct(cals, max);
-      return `
-      <div class="dash-hbar-row">
-        <span class="dash-hbar-row__dow">${label}</span>
-        <div class="dash-hbar-row__track"><div class="dash-hbar-row__fill" style="width:${pct}%"></div></div>
-        <span class="dash-hbar-row__val">${cals || "—"}</span>
-      </div>`;
-    })
-    .join("");
-}
-
 function syncScopeTabs(scope) {
   document.querySelectorAll("[data-dashboard-scope]").forEach((btn) => {
     const s = btn.getAttribute("data-dashboard-scope");
@@ -154,19 +131,6 @@ function renderHouseholdDashboard(state, weekCursor, name1, name2) {
   const a2 = aggregateWeek(state.meals, weekCursor, "u2");
   const ws = wellnessScore(agg.health, agg.rated);
 
-  let compareNote = "";
-  if (a1.totalMeals > 0 || a2.totalMeals > 0) {
-    if (a1.totalMeals === a2.totalMeals) {
-      compareNote = `<p class="dash-compare__note">Same number of meals logged (${a1.totalMeals}).</p>`;
-    } else {
-      const more = a1.totalMeals > a2.totalMeals ? name1 : name2;
-      compareNote = `<p class="dash-compare__note">${escapeHtml(more)} logged more meals this week (${Math.max(
-        a1.totalMeals,
-        a2.totalMeals
-      )} vs ${Math.min(a1.totalMeals, a2.totalMeals)}).</p>`;
-    }
-  }
-
   return `
     <div class="dash-stack">
     <div class="dash-add-meal">
@@ -208,7 +172,6 @@ function renderHouseholdDashboard(state, weekCursor, name1, name2) {
           </tbody>
         </table>
       </div>
-      ${compareNote}
     </div>
     </div>
   `;
@@ -218,8 +181,6 @@ function renderIndividualDashboard(state, weekCursor, userId, personName, meta =
   const { hasPartner = false, name1 = "You", name2 = "Partner", scopeUserId = "u1" } = meta;
   const agg = aggregateWeek(state.meals, weekCursor, userId);
   const ws = wellnessScore(agg.health, agg.rated);
-
-  const simpleBars = renderSimpleCalories(agg.calByDay, agg.dayLabels);
 
   const inviteHidden = hasPartner ? "hidden" : "";
   let sub =
@@ -253,12 +214,6 @@ function renderIndividualDashboard(state, weekCursor, userId, personName, meta =
       ${kpiCard(agg.caloriesSum || "—", "Total kcal", "tracked")}
       ${kpiCard(agg.avgCalories ?? "—", "Avg kcal / meal", "where known")}
       ${wellnessKpiCard(ws)}
-    </div>
-
-    <div class="card">
-      <h4 class="dash-section-title">Calorie rhythm</h4>
-      <p class="dash-section-lead">Daily kcal from your logged meals.</p>
-      <div class="dash-grouped-wrap">${simpleBars}</div>
     </div>
     </div>
   `;

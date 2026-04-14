@@ -538,10 +538,10 @@
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  padding: var(--hm-gap);
-  border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
-  background: color-mix(in srgb, var(--bg-muted) 22%, transparent);
+  padding: calc(var(--hm-gap) + 2px);
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  background: color-mix(in srgb, var(--bg-muted) 16%, transparent);
 }
 
 .heatmap-row {
@@ -552,24 +552,51 @@
   min-width: 0;
 }
 
-.heatmap-cell {
+.heatmap-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--hm-gap);
   width: 100%;
   min-width: 0;
-  aspect-ratio: 1;
+}
+
+.heatmap-weekday {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: center;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.heatmap-cell {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 1 / 0.95;
   height: auto;
-  border-radius: 2px;
+  border-radius: 12px;
   border: none;
   background: transparent;
   box-shadow: none;
   box-sizing: border-box;
 }
 
+.heatmap-cell__day {
+  font-size: 0.7rem;
+  line-height: 1;
+  color: color-mix(in srgb, var(--text) 74%, var(--bg-base));
+  padding: 0;
+  font-weight: 500;
+}
+
 /* No meals: still show slot so weeks × days grid is readable */
 .heatmap-cell--empty {
   opacity: 1;
   pointer-events: none;
-  background: color-mix(in srgb, var(--bg-base) 55%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 40%, transparent);
+  background: color-mix(in srgb, var(--bg-base) 62%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 32%, transparent);
 }
 
 .heatmap-cell--unrated {
@@ -580,18 +607,55 @@
 }
 
 .heatmap-cell--healthy {
+  background: transparent;
+  box-shadow: none;
+  position: relative;
+}
+
+.heatmap-cell--neutral {
+  background: transparent;
+  box-shadow: none;
+  position: relative;
+}
+
+.heatmap-cell--unhealthy {
+  background: transparent;
+  box-shadow: none;
+  position: relative;
+}
+
+.heatmap-cell--healthy::before,
+.heatmap-cell--neutral::before,
+.heatmap-cell--unhealthy::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 82%;
+  height: 82%;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  z-index: 0;
+}
+
+.heatmap-cell--healthy::before {
   background: color-mix(in srgb, var(--sage) 78%, var(--bg-muted));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sage) 45%, transparent);
 }
 
-.heatmap-cell--neutral {
+.heatmap-cell--neutral::before {
   background: color-mix(in srgb, var(--amber) 72%, var(--bg-muted));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--amber) 40%, transparent);
 }
 
-.heatmap-cell--unhealthy {
+.heatmap-cell--unhealthy::before {
   background: color-mix(in srgb, var(--coral) 70%, var(--bg-muted));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--coral) 42%, transparent);
+}
+
+.heatmap-cell__day {
+  position: relative;
+  z-index: 1;
 }
 
 .heatmap-legend {
@@ -607,6 +671,53 @@
 
 .insight-graph-header .heatmap-legend {
   margin-top: 0;
+}
+
+.insight-panel__title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.insight-panel__meta {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.77rem;
+  line-height: 1.3;
+}
+
+.insight-panel__meta--scope {
+  margin-top: -0.15rem;
+  margin-bottom: 0.45rem;
+}
+
+.insight-panel--heatmap .insight-panel__hint {
+  margin: 0.35rem 0 0.3rem;
+  font-size: 0.93rem;
+  color: var(--text-secondary);
+}
+
+.today-status-card {
+  margin-top: 0.35rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 48%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 88%, var(--bg-base));
+}
+
+.today-status-card__label {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.01em;
+}
+
+.today-status-card__value {
+  margin: 0.2rem 0 0;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
 .heatmap-legend-gap {

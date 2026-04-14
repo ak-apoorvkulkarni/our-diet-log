@@ -221,6 +221,32 @@
   margin-top: var(--space-xs);
 }
 
+.meal-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.meal-item-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.meal-item-row__input {
+  width: 100%;
+}
+
+.meal-item-row__remove {
+  min-width: 2rem;
+  padding: 0.2rem 0.45rem;
+}
+
+.meal-items-add-btn {
+  margin-top: 0.55rem;
+}
+
 .chip-row {
   display: flex;
   flex-wrap: wrap;
@@ -283,6 +309,38 @@
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 }
 
+.meal-log-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.meal-log-week {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.meal-log-week__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.meal-log-day {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.meal-log-day__title {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
 .meal-card {
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -308,9 +366,11 @@
 }
 
 .meal-card__img-wrap {
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 16 / 9;
+  max-height: 140px;
   background: var(--bg-muted);
   position: relative;
+  overflow: hidden;
 }
 
 .meal-card__img {
@@ -319,23 +379,102 @@
   object-fit: cover;
 }
 
-.meal-card__placeholder {
-  width: 100%;
-  height: 100%;
-  display: grid;
-  place-items: center;
-  color: var(--text-muted);
-  font-size: 2rem;
-}
-
 .meal-card__body {
   padding: var(--space-md);
+  position: relative;
+}
+
+.meal-card--has-thumb .meal-card__body {
+  padding-right: calc(var(--space-md) + 76px);
+}
+
+.meal-card__thumb-btn {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0;
+  background: var(--bg-muted);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.meal-card__thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.meal-image-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: grid;
+  place-items: center;
+}
+
+.meal-image-overlay[hidden] {
+  display: none !important;
+}
+
+.meal-image-overlay__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.meal-image-overlay__panel {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  width: min(90vw, 760px);
+  max-height: 86vh;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--bg-elevated);
+  border: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+.meal-image-overlay__img {
+  width: 100%;
+  height: 100%;
+  max-height: 86vh;
+  object-fit: contain;
+  display: block;
+  background: #000;
+}
+
+.meal-image-overlay__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .meal-card__title {
   font-weight: 600;
   margin: 0 0 var(--space-xs);
   font-size: 1rem;
+}
+
+.meal-card__items {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: -0.15rem 0 var(--space-xs);
+  line-height: 1.35;
 }
 
 .meal-card__meta {
