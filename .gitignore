@@ -3,3 +3,9 @@
 .cursor/
 Thumbs.db
 *.dmg
+.env
+data/
+*.db
+.venv/
+__pycache__/
+*.pyc

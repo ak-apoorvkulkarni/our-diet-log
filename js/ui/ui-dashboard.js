@@ -7,7 +7,7 @@ import {
   parseIsoWeek,
   wellnessScore,
 } from "../weekly.js";
-import { isFirebaseConfigured } from "../firebase-config.js";
+import { isServerMode } from "../server-config.js";
 
 const SCOPE_KEY = "diet_dashboard_scope";
 
@@ -80,9 +80,9 @@ function updatePersonTabNames(state) {
 }
 
 function hasDashboardPartner(state) {
-  if (isFirebaseConfigured()) {
+  if (isServerMode()) {
     return Boolean(
-      typeof window !== "undefined" && window.__DIET_FIREBASE_SESSION__?.hasPartner
+      typeof window !== "undefined" && window.__DIET_CLOUD_SESSION__?.hasPartner
     );
   }
   return Boolean(state.users?.some((x) => x.id === "u2"));

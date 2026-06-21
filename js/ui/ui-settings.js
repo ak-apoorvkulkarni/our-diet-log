@@ -2,9 +2,8 @@
  * Settings: rename people, backup / restore vault file, lock session.
  */
 import { applyBackupToLocalStorage, getPbkdf2Iterations } from "../storage.js";
-import { isFirebaseConfigured } from "../firebase-config.js";
-import { getFirebase } from "../firebase.js";
-import { deleteAllMealImagesFirestore, deleteMealImageFirestore } from "../firebase-store.js";
+import { isServerMode } from "../server-config.js";
+import { deleteAllMealImagesFirestore } from "../api-store.js";
 
 export function bindSettings(state, passwordRef, persist, showToast, onLock) {
   document.getElementById("settings-user1-name")?.addEventListener("change", async (e) => {
@@ -23,15 +22,15 @@ export function bindSettings(state, passwordRef, persist, showToast, onLock) {
   });
 
   document.getElementById("btn-export-backup")?.addEventListener("click", () => {
-    const isFb = isFirebaseConfigured();
+    const isCloud = isServerMode();
     let blob;
-    if (isFb) {
+    if (isCloud) {
       blob = new Blob(
         [
           JSON.stringify(
             {
               version: 2,
-              mode: "firebase",
+              mode: "server",
               exportedAt: new Date().toISOString(),
               state,
             },
@@ -86,29 +85,24 @@ export function bindSettings(state, passwordRef, persist, showToast, onLock) {
   });
 
   document.getElementById("btn-delete-account")?.addEventListener("click", async () => {
-    if (!isFirebaseConfigured()) {
-      showToast("Account deletion is available in Firebase mode only.");
+    if (!isServerMode()) {
+      showToast("Account deletion is available on the self-hosted server only.");
       return;
     }
-    const session = window.__DIET_FIREBASE_SESSION__;
-    const householdId = String(session?.householdId || "");
+    const session = window.__DIET_CLOUD_SESSION__;
     const hasPartner = Boolean(session?.hasPartner);
-    if (!householdId) {
-      showToast("Could not find your cloud household. Refresh and try again.");
-      return;
-    }
     if (hasPartner) {
-      showToast("Delete account is disabled after inviting a partner to avoid deleting shared data.");
+      showToast("Remove your partner before deleting your account.");
       return;
     }
 
-    const wantsBackup = confirm("Do you want to download a backup JSON file before deleting your account?");
+    const wantsBackup = confirm("Download a backup JSON before deleting your account?");
     if (wantsBackup) {
       try {
         const blob = new Blob(
           [
             JSON.stringify(
-              { version: 2, mode: "firebase", exportedAt: new Date().toISOString(), state },
+              { version: 2, mode: "server", exportedAt: new Date().toISOString(), state },
               null,
               2
             ),
@@ -127,60 +121,22 @@ export function bindSettings(state, passwordRef, persist, showToast, onLock) {
       }
     }
 
-    const typed = prompt('This will permanently delete your cloud data and account. Type "DELETE" to continue.');
+    const typed = prompt('Permanently delete your account and server data? Type "DELETE" to continue.');
     if (typed !== "DELETE") return;
 
     try {
-      showToast("Deleting your cloud data…");
-      const fb = await getFirebase();
-      if (!fb) throw new Error("Firebase not configured");
-      const { sdk, db, auth } = fb;
-      const uid = String(session?.uid || "");
-
-      // Delete meal images stored in Firestore (free tier; no Cloud Storage).
-      try {
-        for (const m of state.meals || []) {
-          if (m?.id && m.imageFirestore) await deleteMealImageFirestore(uid, m.id);
-        }
-        await deleteAllMealImagesFirestore(uid);
-      } catch (e) {
-        console.warn("Meal image delete failed:", e);
+      showToast("Deleting your account…");
+      await deleteAllMealImagesFirestore();
+      const res = await fetch("/api/auth/me", { method: "DELETE", credentials: "same-origin" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Delete failed");
       }
-
-      // Delete Firestore docs (per-user state + user profile).
-      await sdk.deleteDoc(sdk.doc(db, "users", String(session?.uid || ""), "state", "v1"));
-      await sdk.deleteDoc(sdk.doc(db, "users", String(session?.uid || "")));
-
-      // Delete household doc only if you are alone (kept as a safety net).
-      if (!hasPartner) {
-        await sdk.deleteDoc(sdk.doc(db, "households", householdId, "state", "v1"));
-        await sdk.deleteDoc(sdk.doc(db, "households", householdId));
-      }
-
-      // Delete auth user (may require recent login).
-      const u = auth.currentUser;
-      if (!u) throw new Error("No signed-in user");
-      await sdk.deleteUser(u);
-
       showToast("Account deleted.");
-      try {
-        window.location.reload();
-      } catch {}
+      window.location.reload();
     } catch (e) {
       console.warn(e);
-      const code = String(e?.code || "");
-      const msg = e && e.message ? String(e.message) : "";
-      if (code === "auth/requires-recent-login") {
-        showToast("Please sign out, sign in again, then retry deleting your account.");
-        return;
-      }
-      if (code === "permission-denied") {
-        showToast(
-          "Could not delete account (permission denied). Deploy the latest firestore.rules to your Firebase project, then try again."
-        );
-        return;
-      }
-      showToast("Could not delete account. " + (msg || code || "Check the console for details."));
+      showToast(e?.message ? String(e.message) : "Could not delete account.");
     }
   });
 }
@@ -200,10 +156,10 @@ export function fillSettingsForm(state) {
 
   const syncLine = document.getElementById("sync-status-line");
   if (syncLine) {
-    if (isFirebaseConfigured()) {
-      syncLine.textContent = "Cloud sync: on, using Firebase (Google sign-in, shared household via invite).";
+    if (isServerMode()) {
+      syncLine.textContent = "Cloud sync: on — data stored on this server (SQLite).";
     } else {
-      syncLine.textContent = "Cloud sync: off, local only until you configure Firebase in index.html.";
+      syncLine.textContent = "Local only — encrypted in this browser. Run the server app for cloud sync.";
     }
   }
 }

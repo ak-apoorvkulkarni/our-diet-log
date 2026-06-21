@@ -4,8 +4,8 @@
 import { addMeal, updateMeal, deleteMeal, sortMealsDesc, filterMeals } from "../meals-store.js";
 import { fileToCompressedDataUrl } from "../image-utils.js";
 import { guessCalories } from "../calorie-estimate.js";
-import { isFirebaseConfigured } from "../firebase-config.js";
-import { deleteMealImageFirestore, saveMealImageFirestore } from "../firebase-store.js";
+import { isServerMode } from "../server-config.js";
+import { deleteMealImageFirestore, saveMealImageFirestore } from "../api-store.js";
 import {
   categoryFromDateAndTimeInputs,
   coerceMealCategorySelect,
@@ -516,10 +516,10 @@ export function bindLogForm(state, passwordRef, persist, showToast, onMealSaved)
         imageData: pendingImage,
         imageUrl: null,
       });
-      if (isFirebaseConfigured() && pendingImage) {
+      if (isServerMode() && pendingImage) {
         try {
           const mealId = added?.id || state.meals?.[0]?.id;
-          const sess = window.__DIET_FIREBASE_SESSION__ || {};
+          const sess = window.__DIET_CLOUD_SESSION__ || {};
           if (sess.uid && mealId) {
             await saveMealImageFirestore(String(sess.uid), String(mealId), pendingImage);
             updateMeal(state, mealId, {
@@ -695,9 +695,9 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
       close();
       return;
     }
-    if (isFirebaseConfigured() && newImage) {
+    if (isServerMode() && newImage) {
       try {
-        const sess = window.__DIET_FIREBASE_SESSION__ || {};
+        const sess = window.__DIET_CLOUD_SESSION__ || {};
         if (sess.uid) {
           await saveMealImageFirestore(String(sess.uid), String(meal.id), newImage);
           updateMeal(state, meal.id, {
@@ -723,8 +723,8 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
 
   document.getElementById("btn-delete-meal").onclick = async () => {
     if (!confirm("Delete this meal?")) return;
-    if (isFirebaseConfigured() && meal.imageFirestore) {
-      const sess = window.__DIET_FIREBASE_SESSION__ || {};
+    if (isServerMode() && meal.imageFirestore) {
+      const sess = window.__DIET_CLOUD_SESSION__ || {};
       if (sess.uid) await deleteMealImageFirestore(String(sess.uid), String(meal.id));
     }
     deleteMeal(state, meal.id);

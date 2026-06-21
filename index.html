@@ -265,7 +265,7 @@
           <div class="card" style="max-width: 560px; margin-bottom: 1.5rem">
             <h3 class="card__title" style="font-size: 1rem">Delete account</h3>
             <p class="field-hint" style="margin-bottom: 0.75rem">
-              This removes your meals, photos, and profile from Firebase, then deletes your Google sign-in session for this
+              This permanently deletes your meals, photos, and account from the server.
               app. Download a backup first if you want a copy.
             </p>
             <button type="button" class="btn btn--danger" id="btn-delete-account">Delete my account</button>
@@ -400,7 +400,7 @@
             <span class="marketing-landing__headline-line2">Stay consistent.</span>
           </h1>
         <p class="marketing-landing__lead">
-          One place for your household: meal photos, optional calories, and weekly insights. Sign in with Google and keep
+          One place for your household: meal photos, optional calories, and weekly insights. Sign in and keep
           your dashboard in sync across devices.
         </p>
           <div class="marketing-landing__hero-cta">
@@ -429,7 +429,7 @@
             <article class="marketing-landing__panel">
               <h3 class="marketing-landing__panel-title">Private by default</h3>
               <p class="marketing-landing__panel-text">
-                Sign in with Google and keep your data in Firebase. Share with a partner only if you send an invite.
+                Sign in with your account and keep your data on your own server. Share with a partner only if you send an invite.
               </p>
             </article>
           </div>
@@ -438,7 +438,7 @@
         <section class="marketing-landing__closing" aria-labelledby="marketing-closing-heading">
           <h2 id="marketing-closing-heading" class="marketing-landing__closing-title">Ready when you are</h2>
           <p class="marketing-landing__closing-lead">
-            Open the app, sign in with Google, and start logging. Invite your partner when you are ready to share one
+            Open the app, create an account or sign in, and start logging. Invite your partner when you are ready to share one
             dashboard.
           </p>
           <div class="marketing-landing__closing-cta">
@@ -479,16 +479,16 @@
         </div>
         <h1 class="landing-screen__title">आहार Tracker</h1>
         <p class="landing-screen__tagline">
-          A shared meal log for two. Sign in with Google. Invite your partner to share one dashboard.
+          A shared meal log for two. Create an account or sign in. Invite your partner to share one dashboard.
         </p>
         <ul class="landing-screen__bullets" aria-label="Highlights">
-          <li>Encrypted in your browser before anything is stored</li>
+          <li>Your data on your server (SQLite database)</li>
           <li>Household and per-person dashboards</li>
-          <li>Cloud sync across devices with Firebase</li>
+          <li>Sync across devices on the same server URL</li>
         </ul>
         <div class="landing-screen__actions">
-          <button type="button" class="btn btn--primary" id="btn-landing-create">Create new account</button>
-          <button type="button" class="btn btn--secondary" id="btn-landing-unlock">Continue with Google</button>
+          <button type="button" class="btn btn--primary" id="btn-landing-create">Create account</button>
+          <button type="button" class="btn btn--secondary" id="btn-landing-unlock">Sign in</button>
         </div>
       </div>
     </div>
@@ -510,8 +510,52 @@
         </div>
         <h1>आहार Tracker</h1>
         <p class="auth-card__lead">
-          Sign in to continue. If you are joining a partner invite, you will be added to the shared household dashboard.
+          Sign in or register to continue. If you are joining a partner invite, you will be added to the shared household dashboard.
         </p>
+
+        <div id="server-panel-login" class="auth-panel" hidden>
+          <form id="form-server-login" class="auth-form" autocomplete="on">
+            <div class="field">
+              <label for="server-login-username">Username</label>
+              <input id="server-login-username" type="text" autocomplete="username" required />
+            </div>
+            <div class="field">
+              <label for="server-login-password">Password</label>
+              <input id="server-login-password" type="password" autocomplete="current-password" required />
+            </div>
+            <button type="submit" class="btn btn--primary">Sign in</button>
+            <p id="server-error-login" class="auth-error" role="status"></p>
+          </form>
+          <button type="button" id="btn-server-show-register" class="btn btn--ghost auth-toggle" style="width: 100%; margin-top: 1rem">
+            First time? Create account
+          </button>
+        </div>
+
+        <div id="server-panel-register" class="auth-panel" hidden>
+          <form id="form-server-register" class="auth-form" autocomplete="on">
+            <div class="field">
+              <label for="server-register-username">Username</label>
+              <input id="server-register-username" type="text" autocomplete="username" required />
+            </div>
+            <div class="field">
+              <label for="server-register-name">Display name (optional)</label>
+              <input id="server-register-name" type="text" autocomplete="name" />
+            </div>
+            <div class="field">
+              <label for="server-register-password">Password (8+ characters)</label>
+              <input id="server-register-password" type="password" autocomplete="new-password" required />
+            </div>
+            <div class="field">
+              <label for="server-register-password2">Confirm password</label>
+              <input id="server-register-password2" type="password" autocomplete="new-password" required />
+            </div>
+            <button type="submit" class="btn btn--primary">Create account</button>
+            <p id="server-error-register" class="auth-error" role="status"></p>
+          </form>
+          <button type="button" id="btn-server-show-login" class="btn btn--ghost auth-toggle" style="width: 100%; margin-top: 1rem">
+            Already have an account? Sign in
+          </button>
+        </div>
 
         <p id="auth-localhost-hint" class="auth-localhost-hint" hidden>
           <strong>Local preview:</strong> Storage is separate from the live site (localhost vs github.io). To open the
@@ -577,8 +621,8 @@
         </button>
 
         <div class="auth-note">
-          <strong>Privacy:</strong> Your data is stored in Firebase and protected by Google sign in plus Firestore
-          security rules. Share a household dashboard only by sending an invite link to your partner.
+          <strong>Privacy:</strong> On the self-hosted server, your meals are stored in a SQLite database on that machine.
+          Share a household dashboard only by sending an invite link to your partner.
         </div>
         <div class="field" style="margin-top: 1.25rem">
           <label for="auth-restore-file">New phone? Restore backup file</label>
@@ -619,19 +663,6 @@
     </style>
 
     <script>
-      // Firebase config (required for Google sign-in + cloud storage).
-      // Fill these from your Firebase project settings.
-      // NOTE: You must add your GitHub Pages domain to Firebase Auth authorized domains.
-      window.__DIET_FIREBASE_CONFIG__ = {
-        apiKey: "AIzaSyBashYpxSG4TFcAENBucPkXoavyT8Gbm3A",
-        authDomain: "aahar-edc55.firebaseapp.com",
-        projectId: "aahar-edc55",
-        appId: "1:604465339228:web:f001681c1b34f5877a3f99",
-        storageBucket: "aahar-edc55.firebasestorage.app",
-        messagingSenderId: "604465339228",
-        measurementId: "G-X25NTCXPF5",
-      };
-
       // Optional: USDA FoodData API key (free at api.data.gov), for higher rate limits than the demo key.
       window.__DIET_USDA_API_KEY__ = "";
     </script>

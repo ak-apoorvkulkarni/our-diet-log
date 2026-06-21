@@ -5,8 +5,8 @@ import { ensureStateShape } from "./models.js";
 import { saveEncrypted } from "./storage.js";
 import { APP_VERSION, DEVELOPER_NAME, DEVELOPER_SITE } from "./version.js";
 import { initAuthScreen } from "./ui/ui-auth.js";
-import { isFirebaseConfigured } from "./firebase-config.js";
-import { getRedirectUser, onAuthStateChanged, signInWithGoogle, signOutFirebase } from "./firebase-auth.js";
+import { initServerAuth, signOutServer } from "./ui/ui-server-auth.js";
+import { detectServerMode, isServerMode } from "./server-config.js";
 import {
   acceptInvite,
   buildDefaultStateForUser,
@@ -24,8 +24,8 @@ import {
   listHouseholdConnections,
   listPartnerEntries,
   saveUserState,
-  stripFirebaseMealImagesForSave,
-} from "./firebase-store.js";
+  stripServerMealImagesForSave,
+} from "./api-store.js";
 import {
   renderMealGrid,
   bindLogForm,
@@ -44,15 +44,15 @@ import { bindSettings, fillSettingsForm } from "./ui/ui-settings.js";
 import { renderDashboardInsights } from "./ui/ui-insights.js";
 import { bindReminderSettings, startReminderScheduler, isRemindersEnabled } from "./reminders.js";
 let appState = ensureStateShape(null);
-let firebaseMyState = ensureStateShape(null);
-let firebasePartnerState = null;
-let firebasePartnerUid = "";
-let firebasePartnerName = "";
+let cloudMyState = ensureStateShape(null);
+let cloudPartnerState = null;
+let cloudPartnerUid = "";
+let cloudPartnerName = "";
 let sessionPassword = "";
 let weekCursor = weekCursorFromStorage();
-let firebaseUser = null;
-let firebaseHouseholdId = "";
-let firebaseUserId = "u1";
+let cloudUser = null;
+let cloudHouseholdId = "";
+let cloudUserId = "u1";
 
 /** If the same meal id appears twice (e.g. merged household + duplicate save), keep the first occurrence. */
 function dedupeMealsById(meals) {
@@ -70,16 +70,16 @@ function dedupeMealsById(meals) {
 }
 
 function viewState() {
-  if (!isFirebaseConfigured()) return appState;
-  const mine = firebaseMyState || ensureStateShape(null);
-  if (!firebasePartnerState || !firebasePartnerUid) return mine;
+  if (!isServerMode()) return appState;
+  const mine = cloudMyState || ensureStateShape(null);
+  if (!cloudPartnerState || !cloudPartnerUid) return mine;
   const u1Name = mine.users?.find((u) => u.id === "u1")?.name || "You";
-  const u2Name = String(firebasePartnerName || "Partner");
+  const u2Name = String(cloudPartnerName || "Partner");
   const mineMeals = Array.isArray(mine.meals)
-    ? mine.meals.map((m) => ({ ...m, userId: "u1", ownerUid: firebaseUser?.uid || "" }))
+    ? mine.meals.map((m) => ({ ...m, userId: "u1", ownerUid: cloudUser?.uid || "" }))
     : [];
-  const partnerMeals = Array.isArray(firebasePartnerState.meals)
-    ? firebasePartnerState.meals.map((m) => ({ ...m, userId: "u2", ownerUid: firebasePartnerUid }))
+  const partnerMeals = Array.isArray(cloudPartnerState.meals)
+    ? cloudPartnerState.meals.map((m) => ({ ...m, userId: "u2", ownerUid: cloudPartnerUid }))
     : [];
   return ensureStateShape({
     ...mine,
@@ -98,22 +98,22 @@ function passwordRef() {
 /** @returns {Promise<boolean>} true if data was written to disk / cloud */
 async function persist() {
   const FIREBASE_SAVE_TIMEOUT_MS = 45000;
-  if (isFirebaseConfigured()) {
-    if (!firebaseUser || !firebaseHouseholdId) {
+  if (isServerMode()) {
+    if (!cloudUser || !cloudHouseholdId) {
       showToast("Not signed in. Refresh and sign in again.");
       return false;
     }
     try {
       await Promise.race([
         (async () => {
-          await ensureUserProfile(firebaseUser.uid, {
-            householdId: firebaseHouseholdId,
-            name: String(firebaseUser.displayName || ""),
+          await ensureUserProfile(cloudUser.uid, {
+            householdId: cloudHouseholdId,
+            name: String(cloudUser.displayName || ""),
           });
           await saveUserState(
-            firebaseUser.uid,
-            firebaseHouseholdId,
-            stripFirebaseMealImagesForSave(firebaseMyState)
+            cloudUser.uid,
+            cloudHouseholdId,
+            stripServerMealImagesForSave(cloudMyState)
           );
         })(),
         new Promise((_, reject) => {
@@ -122,7 +122,7 @@ async function persist() {
       ]);
       return true;
     } catch (e) {
-      console.warn("Firebase save failed:", e);
+      console.warn("Server save failed:", e);
       const msg = e?.message === "SAVE_TIMEOUT" ? "Save timed out. Check your connection and try again." : null;
       showToast(
         msg || "Could not save to cloud. Check your connection and try again."
@@ -209,21 +209,21 @@ function renderMealsView() {
   renderMealGrid(grid, s, {
     mealFilters,
     canEditMeal: (m) => {
-      if (!isFirebaseConfigured()) return true;
+      if (!isServerMode()) return true;
       const ownerUid = String(m?.ownerUid || "");
       if (!ownerUid) return true;
-      return ownerUid === String(firebaseUser?.uid || "");
+      return ownerUid === String(cloudUser?.uid || "");
     },
     onEdit: (id) => {
-      if (isFirebaseConfigured()) {
+      if (isServerMode()) {
         const meal = s.meals.find((m) => m.id === id);
         const ownerUid = String(meal?.ownerUid || "");
-        if (ownerUid && ownerUid !== String(firebaseUser?.uid || "")) {
+        if (ownerUid && ownerUid !== String(cloudUser?.uid || "")) {
           showToast("You can only edit your own meals.");
           return;
         }
       }
-      openEditModal(firebaseMyState, id, passwordRef, persist, showToast, () => refreshMealsDashboardInsights());
+      openEditModal(cloudMyState, id, passwordRef, persist, showToast, () => refreshMealsDashboardInsights());
     },
   });
 }
@@ -255,12 +255,12 @@ function initMainApp() {
     fv.innerHTML = `आहार Tracker · <code>v${APP_VERSION}</code> · <a href="${DEVELOPER_SITE}" target="_blank" rel="noopener noreferrer">${DEVELOPER_NAME}</a>${local ? " · running locally" : ""}`;
   }
   refreshUserSelects();
-  const stateRef = isFirebaseConfigured() ? firebaseMyState : appState;
+  const stateRef = isServerMode() ? cloudMyState : appState;
   fillSettingsForm(viewState());
   initLogDefaults();
   bindSettings(stateRef, passwordRef, persist, showToast, () => {
-    if (isFirebaseConfigured()) {
-      void signOutFirebase()
+    if (isServerMode()) {
+      void signOutServer()
         .catch((e) => console.warn("Sign out failed:", e))
         .finally(() => location.reload());
       return;
@@ -351,14 +351,14 @@ function initMainApp() {
 
   shell.addEventListener("click", (e) => {
     const inviteBtn = e.target.closest("[data-invite-partner]");
-    if (inviteBtn && shell.contains(inviteBtn) && isFirebaseConfigured()) {
+    if (inviteBtn && shell.contains(inviteBtn) && isServerMode()) {
       e.preventDefault();
-      if (!firebaseUser || !firebaseHouseholdId) return;
+      if (!cloudUser || !cloudHouseholdId) return;
       (async () => {
         try {
-          const toEmail = prompt("Partner email (Google email). Only this email will be able to accept the invite.");
-          if (!toEmail) return;
-          const token = await createInvite(firebaseHouseholdId, firebaseUser.uid, toEmail);
+          const toUsername = prompt("Partner username. Only that account can accept the invite.");
+          if (!toUsername) return;
+          const token = await createInvite(cloudHouseholdId, cloudUser.uid, toUsername);
           const u = new URL(location.href);
           u.searchParams.set("invite", token);
           const link = u.toString();
@@ -442,292 +442,170 @@ function initMainApp() {
 }
 
 function start() {
-  // Security: never bypass authentication in runtime builds.
-  // App initialization always flows through Firebase auth or local unlock.
+  void boot();
+}
 
-  // Firebase mode: Google sign-in + Firestore persistence.
-  if (isFirebaseConfigured()) {
-    const marketingEl = document.getElementById("marketing-landing");
-    const landingEl = document.getElementById("landing-screen");
-    const authEl = document.getElementById("auth-screen");
+async function boot() {
+  const serverMode = await detectServerMode();
 
-    function showMarketing() {
-      if (marketingEl) {
-        marketingEl.hidden = false;
-        marketingEl.removeAttribute("aria-hidden");
-      }
-      if (landingEl) {
-        landingEl.hidden = true;
-        landingEl.setAttribute("aria-hidden", "true");
-      }
-      if (authEl) {
-        authEl.hidden = true;
-        authEl.setAttribute("aria-hidden", "true");
-      }
-    }
-
-    function showLanding() {
-      if (marketingEl) {
-        marketingEl.hidden = true;
-        marketingEl.setAttribute("aria-hidden", "true");
-      }
-      if (landingEl) {
-        landingEl.hidden = false;
-        landingEl.removeAttribute("aria-hidden");
-      }
-      if (authEl) {
-        authEl.hidden = true;
-        authEl.setAttribute("aria-hidden", "true");
-      }
-    }
-
-    // Default to marketing screen (first visit).
-    if (marketingEl) {
-      showMarketing();
-    } else if (landingEl) {
-      landingEl.hidden = false;
-      landingEl.removeAttribute("aria-hidden");
-    }
-
-    // Wire marketing CTAs to Google sign-in directly (skip the extra landing step).
-    document.querySelectorAll(".marketing-open-product").forEach((b) => {
-      b.addEventListener("click", async (e) => {
-        e.preventDefault();
-        try {
-          const u = await signInWithGoogle();
-          if (u) {
-            void startAuthedSession(u);
-          } else {
-            showToast("Continuing sign-in in this tab…");
-          }
-        } catch (err) {
-          console.warn(err);
-          const code = err && err.code ? String(err.code) : "";
-          const msg = err && err.message ? String(err.message) : "";
-          if (code === "auth/unauthorized-domain") {
-            showToast(
-              "Firebase blocked this domain. In Firebase Console → Authentication → Settings → Authorized domains, add localhost and your GitHub Pages domain, then try again."
-            );
-            return;
-          }
-          showToast(
-            "Could not sign in. " +
-              (code ? `(${code}) ` : "") +
-              (msg ? msg : "Check popup blockers. If blocked, the app will redirect instead.")
-          );
-        }
-      });
-    });
-
-    // Wire back button from product landing to marketing.
-    document.getElementById("btn-landing-back-marketing")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      showMarketing();
-    });
-
-    // Update the product landing button labels for Google sign in.
-    const btn = document.getElementById("btn-landing-unlock");
-    if (btn) btn.textContent = "Continue with Google";
-    const btn2 = document.getElementById("btn-landing-create");
-    if (btn2) btn2.textContent = "Get started with Google";
-
-    // If an invite token is present in the URL, keep it for after sign-in.
+  if (serverMode) {
     const params = new URLSearchParams(location.search || "");
     const inviteToken = String(params.get("invite") || "").trim();
-
-    const FIRESTORE_BOOT_MS = 60000;
-
+    const BOOT_MS = 60000;
     let started = false;
+
     async function startAuthedSession(user) {
       if (!user || started) return;
       started = true;
-      firebaseUser = user;
+      cloudUser = user;
       try {
         await Promise.race([
           (async () => {
-        if (inviteToken) {
-          firebaseHouseholdId = await acceptInvite(
-            inviteToken,
-            user.uid,
-            user.displayName,
-            user.email
-          );
-          try {
-            const u = new URL(location.href);
-            u.searchParams.delete("invite");
-            history.replaceState({}, "", u.toString());
-          } catch (e) {}
-        } else {
-          const fromProfile = await loadUserHouseholdIdFromProfile(user.uid);
-          firebaseHouseholdId = fromProfile || householdIdForUser(user.uid);
-        }
-
-        await ensureHouseholdExists(firebaseHouseholdId, user.uid);
-        const meta = await loadHouseholdMeta(firebaseHouseholdId);
-        firebaseUserId = "u1";
-        firebasePartnerUid = (await partnerUidFromHousehold(firebaseHouseholdId, user.uid)) || "";
-        firebasePartnerName = firebasePartnerUid
-          ? String(meta?.profiles?.[firebasePartnerUid]?.name || "Partner")
-          : "";
-
-        await ensureUserProfile(user.uid, {
-          householdId: firebaseHouseholdId,
-          name: String(user.displayName || ""),
-        });
-
-        let myState = await loadUserState(user.uid);
-        if (!myState) {
-          // One-time migration for existing installs:
-          // Split the legacy shared household state into per-user state for the currently signed-in user only.
-          try {
-            const legacy = await loadHouseholdState(firebaseHouseholdId);
-            const slots = meta?.slots || {};
-            const legacyUserId = slots.u2 === user.uid ? "u2" : "u1";
-            if (legacy && Array.isArray(legacy.meals)) {
-              const myMeals = legacy.meals
-                .filter((m) => String(m.userId || "u1") === legacyUserId)
-                .map((m) => ({ ...m, userId: "u1" }));
-              const legacyName =
-                legacy?.users?.find((u) => u.id === legacyUserId)?.name ||
-                String(user.displayName || "You");
-              myState = ensureStateShape({
-                ...legacy,
-                users: [{ id: "u1", name: legacyName }],
-                meals: myMeals,
-              });
-              await saveUserState(user.uid, firebaseHouseholdId, myState);
-            }
-          } catch (e) {
-            console.warn("Legacy migration skipped:", e);
-          }
-        }
-        if (!myState) {
-          myState = buildDefaultStateForUser(user.displayName);
-          await saveUserState(user.uid, firebaseHouseholdId, myState);
-        }
-        firebaseMyState = ensureStateShape(myState);
-        await hydrateMealImagesForState(user.uid, firebaseMyState);
-
-        if (firebasePartnerUid) {
-          try {
-            firebasePartnerState = await loadUserState(firebasePartnerUid);
-            if (firebasePartnerState) {
-              await hydrateMealImagesForState(firebasePartnerUid, firebasePartnerState);
-            }
-          } catch (pe) {
-            console.warn("Partner state unavailable (continuing solo):", pe);
-            firebasePartnerState = null;
-            const pCode = pe && pe.code ? String(pe.code) : "";
-            if (pCode === "permission-denied") {
-              showToast(
-                "Could not load your partner's data (permissions). You can still use your log; try refresh or ask them to open the app once."
+            if (inviteToken) {
+              cloudHouseholdId = await acceptInvite(
+                inviteToken,
+                user.uid,
+                user.displayName,
+                user.email || user.username
               );
+              try {
+                const u = new URL(location.href);
+                u.searchParams.delete("invite");
+                history.replaceState({}, "", u.toString());
+              } catch (e) {}
+            } else {
+              const fromProfile = await loadUserHouseholdIdFromProfile(user.uid);
+              cloudHouseholdId = fromProfile || householdIdForUser(user.uid);
             }
-          }
-        } else {
-          firebasePartnerState = null;
-        }
 
-        // Solo account: remove stale second person from older saves (tabs showed "Aditi" with no partner).
-        if (!firebasePartnerUid) {
-          let dirty = false;
-          if (firebaseMyState.users?.some((u) => u.id === "u2")) {
-            firebaseMyState.users = firebaseMyState.users.filter((u) => u.id !== "u2");
-            dirty = true;
-          }
-          if (firebaseMyState.meals?.some((m) => String(m.userId || "u1") === "u2")) {
-            firebaseMyState.meals = firebaseMyState.meals.filter(
-              (m) => String(m.userId || "u1") !== "u2"
-            );
-            dirty = true;
-          }
-          if (!firebaseMyState.users?.length) {
-            firebaseMyState.users = [{ id: "u1", name: String(user.displayName || "You") }];
-            dirty = true;
-          }
-          if (dirty) {
-            await saveUserState(
-              user.uid,
-              firebaseHouseholdId,
-              stripFirebaseMealImagesForSave(firebaseMyState)
-            );
-          }
-        }
+            await ensureHouseholdExists(cloudHouseholdId, user.uid);
+            const meta = await loadHouseholdMeta(cloudHouseholdId);
+            cloudUserId = "u1";
+            cloudPartnerUid = (await partnerUidFromHousehold(cloudHouseholdId, user.uid)) || "";
+            cloudPartnerName = cloudPartnerUid
+              ? String(meta?.profiles?.[cloudPartnerUid]?.name || "Partner")
+              : "";
 
-        appState = firebaseMyState;
+            await ensureUserProfile(user.uid, {
+              householdId: cloudHouseholdId,
+              name: String(user.displayName || ""),
+            });
+
+            let myState = await loadUserState(user.uid);
+            if (!myState) {
+              try {
+                const legacy = await loadHouseholdState(cloudHouseholdId);
+                const slots = meta?.slots || {};
+                const legacyUserId = slots.u2 === user.uid ? "u2" : "u1";
+                if (legacy && Array.isArray(legacy.meals)) {
+                  const myMeals = legacy.meals
+                    .filter((m) => String(m.userId || "u1") === legacyUserId)
+                    .map((m) => ({ ...m, userId: "u1" }));
+                  const legacyName =
+                    legacy?.users?.find((u) => u.id === legacyUserId)?.name ||
+                    String(user.displayName || "You");
+                  myState = ensureStateShape({
+                    ...legacy,
+                    users: [{ id: "u1", name: legacyName }],
+                    meals: myMeals,
+                  });
+                  await saveUserState(user.uid, cloudHouseholdId, myState);
+                }
+              } catch (e) {
+                console.warn("Legacy migration skipped:", e);
+              }
+            }
+            if (!myState) {
+              myState = buildDefaultStateForUser(user.displayName);
+              await saveUserState(user.uid, cloudHouseholdId, myState);
+            }
+            cloudMyState = ensureStateShape(myState);
+            await hydrateMealImagesForState(user.uid, cloudMyState);
+
+            if (cloudPartnerUid) {
+              try {
+                cloudPartnerState = await loadUserState(cloudPartnerUid);
+                if (cloudPartnerState) {
+                  await hydrateMealImagesForState(cloudPartnerUid, cloudPartnerState);
+                }
+              } catch (pe) {
+                console.warn("Partner state unavailable (continuing solo):", pe);
+                cloudPartnerState = null;
+                showToast(
+                  "Could not load your partner's data. You can still use your log; try refresh."
+                );
+              }
+            } else {
+              cloudPartnerState = null;
+            }
+
+            if (!cloudPartnerUid) {
+              let dirty = false;
+              if (cloudMyState.users?.some((u) => u.id === "u2")) {
+                cloudMyState.users = cloudMyState.users.filter((u) => u.id !== "u2");
+                dirty = true;
+              }
+              if (cloudMyState.meals?.some((m) => String(m.userId || "u1") === "u2")) {
+                cloudMyState.meals = cloudMyState.meals.filter(
+                  (m) => String(m.userId || "u1") !== "u2"
+                );
+                dirty = true;
+              }
+              if (!cloudMyState.users?.length) {
+                cloudMyState.users = [{ id: "u1", name: String(user.displayName || "You") }];
+                dirty = true;
+              }
+              if (dirty) {
+                await saveUserState(
+                  user.uid,
+                  cloudHouseholdId,
+                  stripServerMealImagesForSave(cloudMyState)
+                );
+              }
+            }
+
+            appState = cloudMyState;
           })(),
           new Promise((_, reject) =>
             setTimeout(
               () => reject(new Error("Loading your data timed out. Check your network and try again.")),
-              FIRESTORE_BOOT_MS
+              BOOT_MS
             )
           ),
         ]);
       } catch (e) {
         started = false;
-        console.warn("Firebase load failed:", e);
-        const code = e && e.code ? String(e.code) : "";
-        const msg = e && e.message ? String(e.message) : "";
-        if (code === "permission-denied") {
-          const cfg =
-            typeof window !== "undefined" && window.__DIET_FIREBASE_CONFIG__
-              ? window.__DIET_FIREBASE_CONFIG__
-              : null;
-          const pid = cfg && cfg.projectId ? String(cfg.projectId) : "";
-          showToast(
-            pid
-              ? `Firestore permission denied. Confirm Firestore rules are deployed to project ${pid} and you are signed in, then refresh.`
-              : "Firestore permission denied. Confirm Firestore rules are deployed to this Firebase project and you are signed in, then refresh."
-          );
-          return;
-        }
-        showToast(
-          msg && !code
-            ? msg
-            : "Could not load your data from the cloud. " +
-                (code ? `(${code}) ` : "") +
-                (msg ? msg : "Try a normal browser (Chrome/Safari) or refresh.")
-        );
+        console.warn("Server load failed:", e);
+        showToast(e?.message ? String(e.message) : "Could not load your data. Try refresh.");
         return;
       }
 
-      // Hide all pre-app overlays after successful sign-in.
-      try {
-        const marketingEl2 = document.getElementById("marketing-landing");
-        const landingEl2 = document.getElementById("landing-screen");
-        const authEl2 = document.getElementById("auth-screen");
-        if (marketingEl2) {
-          marketingEl2.hidden = true;
-          marketingEl2.setAttribute("aria-hidden", "true");
+      ["marketing-landing", "landing-screen", "auth-screen"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.hidden = true;
+          el.setAttribute("aria-hidden", "true");
         }
-        if (landingEl2) {
-          landingEl2.hidden = true;
-          landingEl2.setAttribute("aria-hidden", "true");
-        }
-        if (authEl2) {
-          authEl2.hidden = true;
-          authEl2.setAttribute("aria-hidden", "true");
-        }
-      } catch (e) {}
+      });
 
-      // Add a simple invite helper to Settings (safe no-op if missing elements).
       const syncLine = document.getElementById("sync-status-line");
       if (syncLine) {
-        syncLine.textContent = "Cloud sync: on, powered by Firebase (shared household via invite).";
+        syncLine.textContent = "Cloud sync: on — data stored on this server (SQLite).";
       }
+
       const about = document.querySelector("#view-settings .card:last-of-type");
       if (about && !document.getElementById("btn-invite-partner")) {
         void (async () => {
           let metaNow = null;
           try {
-            metaNow = await loadHouseholdMeta(firebaseHouseholdId);
+            metaNow = await loadHouseholdMeta(cloudHouseholdId);
           } catch (e) {
             console.warn(e);
           }
           const ownerUid = String(metaNow?.slots?.u1 || "");
-          const isOwner = Boolean(ownerUid && ownerUid === firebaseUser?.uid);
+          const isOwner = Boolean(ownerUid && ownerUid === cloudUser?.uid);
           const metaSafe = metaNow || {};
-          const connected = listHouseholdConnections(metaSafe, firebaseUser?.uid || "");
+          const connected = listHouseholdConnections(metaSafe, cloudUser?.uid || "");
           const partnersForRemove = listPartnerEntries(metaSafe, ownerUid);
           const maxPartners = 7;
           const inviteDisabled = !isOwner || partnersForRemove.length >= maxPartners;
@@ -755,10 +633,10 @@ function start() {
             </select>
             <button type="button" class="btn btn--danger" id="btn-remove-partner" disabled>Remove</button>
           </div>
-          <p class="field-hint" style="margin-top:0.5rem;margin-bottom:0">Only the household owner can remove someone. Other partners stay connected.</p>
+          <p class="field-hint" style="margin-top:0.5rem;margin-bottom:0">Only the household owner can remove someone.</p>
         </div>`
               : !isOwner && connected.length > 0
-                ? `<p class="field-hint" style="margin-top:0.75rem;margin-bottom:0">Only the person who created the household can remove a partner.</p>`
+                ? `<p class="field-hint" style="margin-top:0.75rem;margin-bottom:0">Only the household owner can remove a partner.</p>`
                 : "";
 
           const wrap = document.createElement("div");
@@ -768,7 +646,7 @@ function start() {
           wrap.innerHTML = `
           <h3 class="card__title" style="font-size: 1rem">Partner invite</h3>
           <p class="field-hint" style="margin-bottom: 0.75rem">
-            Invite your partner to share the same dashboard. They will sign in with Google and join your household.
+            Invite your partner by username. They register on this server, then open your invite link.
           </p>
           ${partnersListHtml}
           <button type="button" class="btn btn--secondary" id="btn-invite-partner" ${
@@ -780,19 +658,17 @@ function start() {
           about.parentElement.insertBefore(wrap, about);
 
           document.getElementById("btn-invite-partner")?.addEventListener("click", async () => {
-            if (!firebaseUser || !firebaseHouseholdId) return;
+            if (!cloudUser || !cloudHouseholdId) return;
             try {
-              const toEmail = prompt(
-                "Partner email (Google email). Only this email will be able to accept the invite."
+              const toUsername = prompt(
+                "Partner username (they must register with this exact username before accepting)."
               );
-              if (!toEmail) return;
-              const token = await createInvite(firebaseHouseholdId, firebaseUser.uid, toEmail);
+              if (!toUsername) return;
+              const token = await createInvite(cloudHouseholdId, cloudUser.uid, toUsername);
               const u = new URL(location.href);
               u.searchParams.set("invite", token);
               const line = document.getElementById("invite-link-line");
-              if (line) {
-                line.textContent = u.toString();
-              }
+              if (line) line.textContent = u.toString();
               try {
                 await navigator.clipboard.writeText(u.toString());
                 showToast("Invite link copied.");
@@ -801,11 +677,7 @@ function start() {
               }
             } catch (e) {
               console.warn(e);
-              showToast(
-                e?.message
-                  ? String(e.message)
-                  : "Could not create invite link. Check Firestore rules and that you are signed in."
-              );
+              showToast(e?.message ? String(e.message) : "Could not create invite link.");
             }
           });
 
@@ -815,25 +687,16 @@ function start() {
             if (removeBtn) removeBtn.disabled = !removeSel.value;
           });
           removeBtn?.addEventListener("click", async () => {
-            if (!firebaseUser || !firebaseHouseholdId) return;
+            if (!cloudUser || !cloudHouseholdId) return;
             const uid = removeSel?.value;
             if (!uid) {
               showToast("Select a partner to remove.");
               return;
             }
             const label = removeSel?.selectedOptions?.[0]?.textContent?.trim() || "this person";
-            if (!confirm(`Remove ${label} from this household? They will lose access to this dashboard.`)) return;
-            if (
-              !confirm(
-                partnersForRemove.length > 1
-                  ? `Remove ${label}? Everyone else in the household will stay connected.`
-                  : "Are you sure? This will revert the app back to individual mode."
-              )
-            ) {
-              return;
-            }
+            if (!confirm(`Remove ${label} from this household?`)) return;
             try {
-              await removePartner(firebaseHouseholdId, firebaseUser.uid, uid);
+              await removePartner(cloudHouseholdId, cloudUser.uid, uid);
               showToast("Partner removed.");
               window.location.reload();
             } catch (e) {
@@ -844,67 +707,20 @@ function start() {
         })();
       }
 
-      // Before first dashboard render: expose session so scope tabs use Firestore partner link, not stale state.users.
       try {
-        window.__DIET_FIREBASE_SESSION__ = {
-          uid: firebaseUser?.uid || "",
-          householdId: firebaseHouseholdId || "",
-          userId: firebaseUserId || "u1",
-          hasPartner: Boolean(firebasePartnerUid),
+        window.__DIET_CLOUD_SESSION__ = {
+          uid: cloudUser?.uid || "",
+          householdId: cloudHouseholdId || "",
+          userId: cloudUserId || "u1",
+          hasPartner: Boolean(cloudPartnerUid),
         };
       } catch (e) {}
 
       initMainApp();
-
-      // Invite partner buttons are wired via a single delegated handler in initMainApp().
     }
 
-    // Wire landing CTA buttons to sign-in (kept for direct URL access, but marketing is now direct).
-    ["btn-landing-create", "btn-landing-unlock"].forEach((id) => {
-      document.getElementById(id)?.addEventListener("click", async (e) => {
-        e.preventDefault();
-        try {
-          const u = await signInWithGoogle();
-          if (u) {
-            void startAuthedSession(u);
-          }
-        } catch (err) {
-          console.warn(err);
-          const code = err && err.code ? String(err.code) : "";
-          const msg = err && err.message ? String(err.message) : "";
-          if (code === "auth/unauthorized-domain") {
-            showToast(
-              "Firebase blocked this domain. In Firebase Console → Authentication → Settings → Authorized domains, add localhost and your GitHub Pages domain, then try again."
-            );
-            return;
-          }
-          showToast(
-            "Could not sign in. " +
-              (code ? `(${code}) ` : "") +
-              (msg ? msg : "Check popup blockers. If blocked, the app will redirect instead.")
-          );
-        }
-      });
-    });
-
-    void onAuthStateChanged((user) => {
-      if (!user) return;
-      void startAuthedSession(user);
-    });
-
-    // Finish redirect-based sign-in (embedded browsers often need this instead of popups).
-    void (async () => {
-      try {
-        const ru = await getRedirectUser();
-        if (ru) await startAuthedSession(ru);
-      } catch (e) {
-        console.warn("Redirect sign-in:", e);
-      }
-    })();
-
-    if (typeof window !== "undefined") {
-      window.__DIET_AUTH_READY__ = true;
-    }
+    initServerAuth({ onAuthed: startAuthedSession, showToast });
+    window.__DIET_AUTH_READY__ = true;
     return;
   }
 
@@ -916,9 +732,7 @@ function start() {
     },
     showToast,
   });
-  if (typeof window !== "undefined") {
-    window.__DIET_AUTH_READY__ = true;
-  }
+  window.__DIET_AUTH_READY__ = true;
 }
 
 try {

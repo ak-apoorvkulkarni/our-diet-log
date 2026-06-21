@@ -1,0 +1,22 @@
+[Unit]
+Description=Ahar Tracker — shared meal log (static site)
+Documentation=https://github.com/ak-apoorvkulkarni/our-diet-log
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=apoorv-server
+Group=apoorv-server
+WorkingDirectory=/opt/ahar-tracker
+EnvironmentFile=-/opt/ahar-tracker/.env
+ExecStart=/opt/ahar-tracker/start.sh
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
