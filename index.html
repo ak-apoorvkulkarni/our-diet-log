@@ -373,43 +373,34 @@
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-    <script>
-      (function () {
-        fetch("/api/health", { credentials: "same-origin" })
-          .then(function (r) {
-            return r.ok ? r.json() : null;
-          })
-          .then(function (d) {
-            if (!d || !d.ok) return;
-            window.__DIET_SERVER_MODE__ = true;
-            var m = document.getElementById("marketing-landing");
-            var l = document.getElementById("landing-screen");
-            var a = document.getElementById("auth-screen");
-            var p = document.getElementById("server-panel-login");
-            var local = document.getElementById("auth-local-only");
-            var back = document.getElementById("auth-back-wrap");
-            if (m) {
-              m.hidden = true;
-              m.setAttribute("aria-hidden", "true");
-            }
-            if (l) {
-              l.hidden = true;
-              l.setAttribute("aria-hidden", "true");
-            }
-            if (a) {
-              a.hidden = false;
-              a.removeAttribute("aria-hidden");
-            }
-            if (p) p.hidden = false;
-            if (local) {
-              local.hidden = true;
-              local.setAttribute("aria-hidden", "true");
-            }
-            if (back) back.hidden = true;
-          })
-          .catch(function () {});
-      })();
-    </script>
+    <!-- Server login (standalone — handled by js/server-gate.js before app loads). -->
+    <div id="server-login-screen" class="auth-screen" hidden aria-hidden="true">
+      <div class="auth-card">
+        <div class="auth-card__logo-wrap">
+          <img
+            class="auth-card__logo"
+            src="assets/logo.png?v=1.8.37"
+            alt=""
+            width="64"
+            height="64"
+            decoding="async"
+          />
+        </div>
+        <h1>आहार Tracker</h1>
+        <form id="server-login-form" class="auth-form" method="post" action="#" autocomplete="on" novalidate>
+          <div class="field">
+            <label for="server-login-user">Username</label>
+            <input id="server-login-user" name="username" type="text" autocomplete="username" required />
+          </div>
+          <div class="field">
+            <label for="server-login-pass">Password</label>
+            <input id="server-login-pass" name="password" type="password" autocomplete="current-password" required />
+          </div>
+          <button type="submit" class="btn btn--primary">Sign in</button>
+          <p id="server-login-error" class="auth-error" role="alert" aria-live="assertive"></p>
+        </form>
+      </div>
+    </div>
 
     <div id="marketing-landing" class="marketing-landing" role="region" aria-label="आहार Tracker">
       <div class="marketing-landing__wrap">
@@ -548,108 +539,7 @@
         </div>
         <h1>आहार Tracker</h1>
 
-        <div id="server-panel-login" class="auth-panel" hidden>
-          <form id="form-server-login" class="auth-form" method="post" action="#" autocomplete="on">
-            <div class="field">
-              <label for="server-login-username">Username</label>
-              <input id="server-login-username" type="text" autocomplete="username" required />
-            </div>
-            <div class="field">
-              <label for="server-login-password">Password</label>
-              <input id="server-login-password" type="password" autocomplete="current-password" required />
-            </div>
-            <button type="submit" class="btn btn--primary">Sign in</button>
-            <p id="server-error-login" class="auth-error" role="alert" aria-live="assertive"></p>
-          </form>
-        </div>
-
-        <script>
-          (function () {
-            var SESSION_KEY = "ahar_session_token";
-            var form = document.getElementById("form-server-login");
-            if (!form) return;
-
-            function showLoginError(msg) {
-              var el = document.getElementById("server-error-login");
-              if (!el) return;
-              el.textContent = msg || "";
-            }
-
-            function storeSession(id) {
-              try {
-                localStorage.setItem(SESSION_KEY, String(id));
-              } catch (e) {
-                throw new Error("Browser storage is blocked. Allow storage for this site and reload.");
-              }
-            }
-
-            form.addEventListener("submit", function (e) {
-              e.preventDefault();
-              showLoginError("");
-              var usernameEl = document.getElementById("server-login-username");
-              var passwordEl = document.getElementById("server-login-password");
-              var username = usernameEl && usernameEl.value ? usernameEl.value.trim() : "";
-              var password = passwordEl ? passwordEl.value : "";
-              if (!username || !password) {
-                showLoginError("Enter username and password.");
-                return;
-              }
-              var btn = form.querySelector('button[type="submit"]');
-              if (btn) {
-                btn.disabled = true;
-                btn.textContent = "Signing in…";
-              }
-              fetch("/api/auth/login", {
-                method: "POST",
-                credentials: "same-origin",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  username: username,
-                  password: password,
-                  remember_me: true,
-                }),
-              })
-                .then(function (res) {
-                  return res
-                    .json()
-                    .catch(function () {
-                      return {};
-                    })
-                    .then(function (data) {
-                      return { ok: res.ok, data: data };
-                    });
-                })
-                .then(function (result) {
-                  if (!result.ok) {
-                    var d = result.data && result.data.detail;
-                    throw new Error(
-                      typeof d === "string" ? d : "Invalid username or password."
-                    );
-                  }
-                  if (!result.data || !result.data.session_id) {
-                    throw new Error("Server did not return a session. Hard-refresh and try again.");
-                  }
-                  storeSession(result.data.session_id);
-                  if (btn) btn.textContent = "Loading your diary…";
-                  if (typeof window.__DIET_ON_SERVER_LOGIN__ === "function") {
-                    return window.__DIET_ON_SERVER_LOGIN__(result.data.user);
-                  }
-                  window.location.reload();
-                })
-                .catch(function (err) {
-                  showLoginError(
-                    err && err.message ? err.message : "Could not sign in."
-                  );
-                  if (btn) {
-                    btn.disabled = false;
-                    btn.textContent = "Sign in";
-                  }
-                });
-            });
-          })();
-        </script>
-
-        <!-- Local encrypted vault UI only (hidden on server — see /api/health bootstrap script). -->
+        <!-- Local encrypted vault UI only (not used on server). -->
         <div id="auth-local-only" hidden aria-hidden="true">
         <div id="server-panel-register" class="auth-panel" hidden aria-hidden="true">
           <form id="form-server-register" class="auth-form" autocomplete="on">
@@ -821,18 +711,45 @@
         };
       })();
     </script>
-    <!-- Dynamic import catches failures; import.meta.url fixes subpath hosts (e.g. github.io/repo/). -->
-    <script type="module">
-      import(new URL("./js/app.js?v=1.8.36", import.meta.url).href).catch(function (err) {
-        console.error(err);
-        if (typeof window.__dietReportLoadFailure === "function") {
-          window.__dietReportLoadFailure(
-            "Could not load app code: " +
-              (err && err.message ? err.message : String(err)) +
-              " — If the address bar shows file://, run: python3 -m http.server 8080 then open http://127.0.0.1:8080"
-          );
-        }
-      });
+    <script src="js/server-gate.js?v=1.8.37"></script>
+    <script>
+      window.__DIET_START_APP__ = function () {
+        if (window.__DIET_APP_LOADING__ || window.__DIET_APP_LOADED__) return;
+        window.__DIET_APP_LOADING__ = true;
+        import(new URL("./js/app.js?v=1.8.37", import.meta.url).href)
+          .then(function () {
+            window.__DIET_APP_LOADED__ = true;
+          })
+          .catch(function (err) {
+            console.error(err);
+            window.__DIET_APP_LOADING__ = false;
+            if (window.__DIET_SERVER_MODE__) {
+              var errEl = document.getElementById("server-login-error");
+              if (errEl) {
+                errEl.textContent =
+                  "App failed to load: " + (err && err.message ? err.message : String(err));
+              }
+              var screen = document.getElementById("server-login-screen");
+              if (screen) {
+                screen.hidden = false;
+                screen.removeAttribute("aria-hidden");
+              }
+            }
+            if (typeof window.__dietReportLoadFailure === "function") {
+              window.__dietReportLoadFailure(
+                "Could not load app code: " +
+                  (err && err.message ? err.message : String(err))
+              );
+            }
+          });
+      };
+      if (!window.__DIET_SERVER_MODE__ && window.__DIET_SERVER_MODE__ !== false) {
+        window.addEventListener("DOMContentLoaded", function () {
+          setTimeout(function () {
+            if (window.__DIET_SERVER_MODE__ === false) window.__DIET_START_APP__();
+          }, 50);
+        });
+      }
     </script>
     <script>
       (function () {
@@ -840,6 +757,8 @@
           try {
             if (window.__DIET_AUTH_READY__) return;
             if (window.__dietLoadFailureNotified) return;
+            var login = document.getElementById("server-login-screen");
+            if (login && !login.hidden) return;
             var b = document.getElementById("auth-crypto-banner");
             if (b && b.textContent && b.textContent.length > 10) return;
             if (typeof window.__dietReportLoadFailure === "function") {

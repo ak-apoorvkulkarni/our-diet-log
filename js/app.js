@@ -5,7 +5,7 @@ import { ensureStateShape } from "./models.js";
 import { saveEncrypted } from "./storage.js";
 import { APP_VERSION, DEVELOPER_NAME, DEVELOPER_SITE } from "./version.js";
 import { initAuthScreen } from "./ui/ui-auth.js";
-import { initServerAuth, hideLoginScreen, signOutServer } from "./ui/ui-server-auth.js";
+import { getCurrentUser, logout, toSessionUser } from "./api-auth.js";
 import { detectServerMode, isServerMode } from "./server-config.js";
 import {
   acceptInvite,
@@ -238,7 +238,39 @@ function renderDashboardView() {
   }
 }
 
+function hideLoginScreen() {
+  ["server-login-screen", "marketing-landing", "landing-screen", "auth-screen"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.hidden = true;
+      el.setAttribute("aria-hidden", "true");
+    }
+  });
+}
+
+function showServerLoginError(msg) {
+  const errEl = document.getElementById("server-login-error");
+  if (errEl) errEl.textContent = msg || "";
+  const screen = document.getElementById("server-login-screen");
+  if (screen) {
+    screen.hidden = false;
+    screen.removeAttribute("aria-hidden");
+  }
+  const shell = document.getElementById("app-shell");
+  if (shell) shell.hidden = true;
+}
+
 let mainAppInitialized = false;
+
+function signOutServer() {
+  if (typeof window.__DIET_SERVER_LOGOUT__ === "function") {
+    window.__DIET_SERVER_LOGOUT__();
+    return;
+  }
+  void logout()
+    .catch((e) => console.warn("Sign out failed:", e))
+    .finally(() => location.reload());
+}
 
 function initMainApp() {
   if (mainAppInitialized) return;
@@ -260,9 +292,7 @@ function initMainApp() {
   initLogDefaults();
   bindSettings(stateRef, passwordRef, persist, showToast, () => {
     if (isServerMode()) {
-      void signOutServer()
-        .catch((e) => console.warn("Sign out failed:", e))
-        .finally(() => location.reload());
+      signOutServer();
       return;
     }
     sessionPassword = "";
@@ -515,13 +545,7 @@ async function boot() {
         console.warn("Server load failed:", e);
         const msg = e?.message ? String(e.message) : "Could not load your data. Try refresh.";
         showToast(msg);
-        const errEl = document.getElementById("server-error-login");
-        if (errEl) errEl.textContent = msg;
-        const btn = document.querySelector("#form-server-login button[type=submit]");
-        if (btn) {
-          btn.disabled = false;
-          btn.textContent = "Sign in";
-        }
+        showServerLoginError(msg);
         return;
       }
 
@@ -662,12 +686,25 @@ async function boot() {
         console.error("Main app failed:", e);
         const msg = e?.message ? String(e.message) : "App failed to start. Try refresh.";
         showToast(msg);
-        const errEl = document.getElementById("server-error-login");
-        if (errEl) errEl.textContent = msg;
+        showServerLoginError(msg);
       }
     }
 
-    initServerAuth({ onAuthed: startAuthedSession, showToast });
+    const apiUser = window.__DIET_SERVER_API_USER__;
+    let sessionUser = apiUser ? toSessionUser(apiUser) : null;
+    if (!sessionUser) {
+      try {
+        const me = await getCurrentUser();
+        sessionUser = toSessionUser(me);
+      } catch (e) {
+        console.warn("Session load failed:", e);
+      }
+    }
+    if (sessionUser) {
+      await startAuthedSession(sessionUser);
+    } else {
+      showServerLoginError("Not signed in. Enter your username and password.");
+    }
     window.__DIET_AUTH_READY__ = true;
     return;
   }
