@@ -22,6 +22,15 @@
     <link rel="stylesheet" href="css/auth.css" />
     <link rel="stylesheet" href="css/dashboard.css" />
     <link rel="stylesheet" href="css/insights.css" />
+    <style>
+      /* Avoid flash of marketing page on server — local mode re-shows it in app.js */
+      #marketing-landing {
+        display: none !important;
+      }
+      html.diet-local-mode #marketing-landing {
+        display: block !important;
+      }
+    </style>
   </head>
   <body>
     <div id="app-shell" class="app-shell" hidden>
@@ -379,7 +388,7 @@
         <div class="auth-card__logo-wrap">
           <img
             class="auth-card__logo"
-            src="assets/logo.png?v=1.8.37"
+            src="assets/logo.png?v=1.8.38"
             alt=""
             width="64"
             height="64"
@@ -402,7 +411,7 @@
       </div>
     </div>
 
-    <div id="marketing-landing" class="marketing-landing" role="region" aria-label="आहार Tracker">
+    <div id="marketing-landing" class="marketing-landing" role="region" aria-label="आहार Tracker" hidden aria-hidden="true">
       <div class="marketing-landing__wrap">
         <header class="marketing-landing__top">
           <div class="marketing-landing__top-brand">
@@ -711,12 +720,12 @@
         };
       })();
     </script>
-    <script src="js/server-gate.js?v=1.8.37"></script>
+    <script src="js/server-gate.js?v=1.8.38"></script>
     <script>
       window.__DIET_START_APP__ = function () {
         if (window.__DIET_APP_LOADING__ || window.__DIET_APP_LOADED__) return;
         window.__DIET_APP_LOADING__ = true;
-        import(new URL("./js/app.js?v=1.8.37", import.meta.url).href)
+        import(new URL("./js/app.js?v=1.8.38", import.meta.url).href)
           .then(function () {
             window.__DIET_APP_LOADED__ = true;
           })

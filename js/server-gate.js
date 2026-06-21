@@ -187,11 +187,13 @@
       .then(function (health) {
         if (!health || !health.ok) {
           window.__DIET_SERVER_MODE__ = false;
+          document.documentElement.classList.add("diet-local-mode");
           startApp();
           return;
         }
 
         window.__DIET_SERVER_MODE__ = true;
+        document.documentElement.classList.remove("diet-local-mode");
         showLoginScreen();
         bindLoginForm();
 
@@ -201,6 +203,7 @@
       })
       .catch(function () {
         window.__DIET_SERVER_MODE__ = false;
+        document.documentElement.classList.add("diet-local-mode");
         startApp();
       });
   }

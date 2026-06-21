@@ -198,7 +198,10 @@ export function initAuthScreen({ onAuthed, showToast }) {
     }
   }
 
-  if (!marketingEl && !landingEl && authScreenEl) {
+  if (marketingEl) {
+    document.documentElement.classList.add("diet-local-mode");
+    showMarketingView();
+  } else if (!landingEl && authScreenEl) {
     authScreenEl.hidden = false;
     authScreenEl.removeAttribute("aria-hidden");
   } else if (!marketingEl && landingEl) {

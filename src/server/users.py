@@ -64,6 +64,23 @@ def authenticate_user(username: str, plain_password: str) -> dict | None:
     return _public_user(user)
 
 
+def set_user_password(username: str, plain_password: str) -> dict:
+    user = get_user_by_username(username)
+    if not user:
+        raise ValueError(f"User not found: {username}")
+    if len(plain_password) < 6:
+        raise ValueError("Password must be at least 6 characters")
+    from server.auth import hash_password
+
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ? AND is_active = 1",
+            (hash_password(plain_password), user["id"]),
+        )
+        conn.commit()
+    return _public_user(user)
+
+
 def update_user_profile(user_id: str, *, household_id: str | None = None, display_name: str | None = None) -> None:
     patches: list[str] = []
     values: list[object] = []

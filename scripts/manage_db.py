@@ -65,6 +65,17 @@ def cmd_list_users(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_set_password(args: argparse.Namespace) -> int:
+    init_db()
+    try:
+        user = user_repo.set_user_password(args.username, args.password)
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    print(f"Password updated for: {user['username']}")
+    return 0
+
+
 def cmd_delete_user(args: argparse.Namespace) -> int:
     init_db()
     from server import repository as repo
@@ -103,6 +114,11 @@ def main() -> int:
     p_create.set_defaults(func=cmd_create_user)
 
     sub.add_parser("list-users", help="List all accounts").set_defaults(func=cmd_list_users)
+
+    p_pwd = sub.add_parser("set-password", help="Reset a user's password")
+    p_pwd.add_argument("username")
+    p_pwd.add_argument("password")
+    p_pwd.set_defaults(func=cmd_set_password)
 
     p_del = sub.add_parser("delete-user", help="Delete a user and their data")
     p_del.add_argument("username")
