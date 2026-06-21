@@ -1,4 +1,5 @@
 import { createEmptyState, ensureStateShape } from "./models.js";
+import { apiFetch } from "./api-client.js";
 
 /**
  * Server-backed persistence (SQLite via REST API).
@@ -10,15 +11,14 @@ export function householdIdForUser(uid) {
 }
 
 export async function ensureHouseholdExists(householdId, uid) {
-  const res = await fetch(`/api/households/${encodeURIComponent(householdId)}/ensure`, {
+  const res = await apiFetch(`/api/households/${encodeURIComponent(householdId)}/ensure`, {
     method: "POST",
-    credentials: "same-origin",
   });
   if (!res.ok) throw new Error(await _err(res));
 }
 
 export async function loadUserHouseholdIdFromProfile(uid) {
-  const res = await fetch("/api/users/me/profile", { credentials: "same-origin" });
+  const res = await apiFetch("/api/users/me/profile");
   if (!res.ok) return null;
   const data = await res.json();
   const hid = data?.household_id;
@@ -26,18 +26,15 @@ export async function loadUserHouseholdIdFromProfile(uid) {
 }
 
 export async function loadHouseholdMeta(householdId) {
-  const res = await fetch(`/api/households/${encodeURIComponent(householdId)}`, {
-    credentials: "same-origin",
-  });
+  const res = await apiFetch(`/api/households/${encodeURIComponent(householdId)}`);
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(await _err(res));
   return res.json();
 }
 
 export async function loadHouseholdState(householdId) {
-  const res = await fetch(
-    `/api/households/${encodeURIComponent(householdId)}/legacy-state`,
-    { credentials: "same-origin" }
+  const res = await apiFetch(
+    `/api/households/${encodeURIComponent(householdId)}/legacy-state`
   );
   if (!res.ok) return null;
   const data = await res.json();
@@ -48,9 +45,8 @@ export async function ensureUserProfile(uid, { householdId, name } = {}) {
   const patch = {};
   if (householdId != null) patch.household_id = String(householdId || "");
   if (name != null) patch.display_name = String(name || "");
-  const res = await fetch("/api/users/me/profile", {
+  const res = await apiFetch("/api/users/me/profile", {
     method: "PUT",
-    credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
   });
@@ -62,7 +58,7 @@ export async function loadUserState(uid) {
     uid && (await _myUid()) !== uid
       ? `/api/users/${encodeURIComponent(uid)}/state`
       : "/api/users/me/state";
-  const res = await fetch(path, { credentials: "same-origin" });
+  const res = await apiFetch(path);
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(await _err(res));
   const data = await res.json();
@@ -86,9 +82,8 @@ export function stripServerMealImagesForSave(state) {
 export const stripFirebaseMealImagesForSave = stripServerMealImagesForSave;
 
 export async function saveMealImageServer(uid, mealId, dataUrl) {
-  const res = await fetch(`/api/users/me/meals/${encodeURIComponent(mealId)}/image`, {
+  const res = await apiFetch(`/api/users/me/meals/${encodeURIComponent(mealId)}/image`, {
     method: "PUT",
-    credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ data_url: String(dataUrl || "") }),
   });
@@ -98,9 +93,8 @@ export async function saveMealImageServer(uid, mealId, dataUrl) {
 export const saveMealImageFirestore = saveMealImageServer;
 
 export async function loadMealImageServer(uid, mealId) {
-  const res = await fetch(
-    `/api/users/${encodeURIComponent(uid)}/meals/${encodeURIComponent(mealId)}/image`,
-    { credentials: "same-origin" }
+  const res = await apiFetch(
+    `/api/users/${encodeURIComponent(uid)}/meals/${encodeURIComponent(mealId)}/image`
   );
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(await _err(res));
@@ -111,18 +105,16 @@ export async function loadMealImageServer(uid, mealId) {
 export const loadMealImageFirestore = loadMealImageServer;
 
 export async function deleteMealImageServer(uid, mealId) {
-  await fetch(`/api/users/me/meals/${encodeURIComponent(mealId)}/image`, {
+  await apiFetch(`/api/users/me/meals/${encodeURIComponent(mealId)}/image`, {
     method: "DELETE",
-    credentials: "same-origin",
   });
 }
 
 export const deleteMealImageFirestore = deleteMealImageServer;
 
 export async function deleteAllMealImagesServer() {
-  await fetch("/api/users/me/meal-images", {
+  await apiFetch("/api/users/me/meal-images", {
     method: "DELETE",
-    credentials: "same-origin",
   });
 }
 
@@ -138,9 +130,8 @@ export async function hydrateMealImagesForState(uid, state) {
 }
 
 export async function saveUserState(uid, householdId, state) {
-  const res = await fetch("/api/users/me/state", {
+  const res = await apiFetch("/api/users/me/state", {
     method: "PUT",
-    credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       household_id: String(householdId || ""),
@@ -152,9 +143,7 @@ export async function saveUserState(uid, householdId, state) {
 }
 
 export async function partnerUidFromHousehold(householdId, myUid) {
-  const res = await fetch(`/api/households/${encodeURIComponent(householdId)}/partner`, {
-    credentials: "same-origin",
-  });
+  const res = await apiFetch(`/api/households/${encodeURIComponent(householdId)}/partner`);
   if (!res.ok) return null;
   const data = await res.json();
   return data?.partner_uid || null;
@@ -211,9 +200,8 @@ export function listHouseholdConnections(meta, viewerUid) {
 }
 
 export async function createInvite(householdId, fromUid, toUsername) {
-  const res = await fetch(`/api/households/${encodeURIComponent(householdId)}/invites`, {
+  const res = await apiFetch(`/api/households/${encodeURIComponent(householdId)}/invites`, {
     method: "POST",
-    credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ to_username: String(toUsername || "").trim().toLowerCase() }),
   });
@@ -223,9 +211,8 @@ export async function createInvite(householdId, fromUid, toUsername) {
 }
 
 export async function acceptInvite(token, uid, displayName, username) {
-  const res = await fetch(`/api/invites/${encodeURIComponent(token)}/accept`, {
+  const res = await apiFetch(`/api/invites/${encodeURIComponent(token)}/accept`, {
     method: "POST",
-    credentials: "same-origin",
   });
   if (!res.ok) throw new Error(await _err(res));
   const data = await res.json();
@@ -233,11 +220,10 @@ export async function acceptInvite(token, uid, displayName, username) {
 }
 
 export async function removePartner(householdId, actorUid, targetPartnerUid) {
-  const res = await fetch(
+  const res = await apiFetch(
     `/api/households/${encodeURIComponent(householdId)}/partners/remove`,
     {
       method: "POST",
-      credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ partner_uid: targetPartnerUid }),
     }
@@ -259,7 +245,7 @@ let _cachedMyUid = null;
 
 async function _myUid() {
   if (_cachedMyUid) return _cachedMyUid;
-  const res = await fetch("/api/auth/me", { credentials: "same-origin" });
+  const res = await apiFetch("/api/auth/me");
   if (!res.ok) return null;
   const data = await res.json();
   _cachedMyUid = data?.id || null;

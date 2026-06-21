@@ -1,6 +1,7 @@
 /**
- * Server login / register (cookie session).
+ * Server login / register (cookie session + Bearer token fallback).
  */
+import { apiFetch, setSessionToken } from "./api-client.js";
 
 async function parseError(res) {
   try {
@@ -11,22 +12,25 @@ async function parseError(res) {
   }
 }
 
+function storeSessionFromResponse(data) {
+  if (data?.session_id) setSessionToken(data.session_id);
+}
+
 export async function login(username, password, rememberMe = true) {
-  const res = await fetch("/api/auth/login", {
+  const res = await apiFetch("/api/auth/login", {
     method: "POST",
-    credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password, remember_me: rememberMe }),
   });
   if (!res.ok) throw new Error(await parseError(res));
   const data = await res.json();
+  storeSessionFromResponse(data);
   return data.user;
 }
 
 export async function register(username, password, displayName = "", rememberMe = true) {
-  const res = await fetch("/api/auth/register", {
+  const res = await apiFetch("/api/auth/register", {
     method: "POST",
-    credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       username,
@@ -37,19 +41,24 @@ export async function register(username, password, displayName = "", rememberMe 
   });
   if (!res.ok) throw new Error(await parseError(res));
   const data = await res.json();
+  storeSessionFromResponse(data);
   return data.user;
 }
 
 export async function logout() {
-  await fetch("/api/auth/logout", {
-    method: "POST",
-    credentials: "same-origin",
-  });
+  try {
+    await apiFetch("/api/auth/logout", { method: "POST" });
+  } finally {
+    setSessionToken("");
+  }
 }
 
 export async function getCurrentUser() {
-  const res = await fetch("/api/auth/me", { credentials: "same-origin" });
-  if (res.status === 401) return null;
+  const res = await apiFetch("/api/auth/me");
+  if (res.status === 401) {
+    setSessionToken("");
+    return null;
+  }
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
 }

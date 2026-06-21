@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 import server.config  # noqa: F401
 from server.api_routes import router as api_router
@@ -17,6 +18,18 @@ from server.db import db_status, init_db
 ROOT = Path(__file__).resolve().parents[2]
 
 app = FastAPI(title="Ahar Tracker", version="1.0.0")
+
+
+class NoCacheJsMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        path = request.url.path
+        if path.startswith("/js/") or path == "/" or path.endswith(".html"):
+            response.headers["Cache-Control"] = "no-cache, must-revalidate"
+        return response
+
+
+app.add_middleware(NoCacheJsMiddleware)
 app.include_router(auth_router)
 app.include_router(api_router)
 

@@ -65,6 +65,10 @@ export function initServerAuth({ onAuthed, showToast }) {
     }
     try {
       const user = await login(username, password, true);
+      const verified = await getCurrentUser();
+      if (!verified) {
+        throw new Error("Session could not be saved. Clear site data for this page and try again.");
+      }
       await onAuthed(toSessionUser(user));
     } catch (err) {
       const msg = err?.message || "Could not sign in.";

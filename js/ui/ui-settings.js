@@ -4,6 +4,7 @@
 import { applyBackupToLocalStorage, getPbkdf2Iterations } from "../storage.js";
 import { isServerMode } from "../server-config.js";
 import { deleteAllMealImagesFirestore } from "../api-store.js";
+import { apiFetch } from "../api-client.js";
 
 export function bindSettings(state, passwordRef, persist, showToast, onLock) {
   document.getElementById("settings-user1-name")?.addEventListener("change", async (e) => {
@@ -127,7 +128,7 @@ export function bindSettings(state, passwordRef, persist, showToast, onLock) {
     try {
       showToast("Deleting your account…");
       await deleteAllMealImagesFirestore();
-      const res = await fetch("/api/auth/me", { method: "DELETE", credentials: "same-origin" });
+      const res = await apiFetch("/api/auth/me", { method: "DELETE" });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.detail || "Delete failed");

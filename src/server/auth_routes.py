@@ -64,7 +64,7 @@ def _login_user(user: dict, request: Request, response: Response, remember_me: b
     days = session_days(remember_me)
     session_id = create_session(user["id"], days=days)
     _set_session_cookie(response, request, session_id, remember_me)
-    return {"ok": True, "user": user}
+    return {"ok": True, "user": user, "session_id": session_id}
 
 
 @router.post("/api/auth/login")
