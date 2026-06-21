@@ -33,10 +33,13 @@ cd "$ROOT"
 if [[ "$ROOT" == "/opt/ahar-tracker" ]] || [[ "$(hostname -s 2>/dev/null || hostname)" == apoorv-server* ]]; then
   echo "ERROR: You are on the server already. Do not run sync-to-server.sh here."
   echo ""
-  echo "  To restart the app (after code was copied from your Mac), run:"
-  echo "    cd /opt/ahar-tracker && bash deploy/restart-service.sh"
+  echo "  Run this instead:"
+  echo "    cd /opt/ahar-tracker && bash deploy/update-on-server.sh"
   echo ""
-  echo "  To deploy new code, open a NEW terminal ON YOUR MAC (not SSH) and run:"
+  echo "  Or restart only (no git pull):"
+  echo "    bash deploy/restart-service.sh"
+  echo ""
+  echo "  To deploy from your Mac (new terminal, not SSH):"
   echo "    cd .../diet_tracker && bash deploy/sync-to-server.sh"
   exit 1
 fi
