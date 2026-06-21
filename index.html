@@ -373,6 +373,36 @@
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+    <script>
+      (function () {
+        fetch("/api/health", { credentials: "same-origin" })
+          .then(function (r) {
+            return r.ok ? r.json() : null;
+          })
+          .then(function (d) {
+            if (!d || !d.ok) return;
+            var m = document.getElementById("marketing-landing");
+            var l = document.getElementById("landing-screen");
+            var a = document.getElementById("auth-screen");
+            var p = document.getElementById("server-panel-login");
+            if (m) {
+              m.hidden = true;
+              m.setAttribute("aria-hidden", "true");
+            }
+            if (l) {
+              l.hidden = true;
+              l.setAttribute("aria-hidden", "true");
+            }
+            if (a) {
+              a.hidden = false;
+              a.removeAttribute("aria-hidden");
+            }
+            if (p) p.hidden = false;
+          })
+          .catch(function () {});
+      })();
+    </script>
+
     <div id="marketing-landing" class="marketing-landing" role="region" aria-label="आहार Tracker">
       <div class="marketing-landing__wrap">
         <header class="marketing-landing__top">
@@ -510,7 +540,7 @@
         </div>
         <h1>आहार Tracker</h1>
         <p class="auth-card__lead">
-          Sign in or register to continue. If you are joining a partner invite, you will be added to the shared household dashboard.
+          Sign in with the username and password provided by your admin.
         </p>
 
         <div id="server-panel-login" class="auth-panel" hidden>
@@ -526,12 +556,12 @@
             <button type="submit" class="btn btn--primary">Sign in</button>
             <p id="server-error-login" class="auth-error" role="status"></p>
           </form>
-          <button type="button" id="btn-server-show-register" class="btn btn--ghost auth-toggle" style="width: 100%; margin-top: 1rem">
-            First time? Create account
-          </button>
+          <p class="field-hint" style="margin-top: 1rem; text-align: center">
+            Need access? Contact your admin — accounts are created on the server, not here.
+          </p>
         </div>
 
-        <div id="server-panel-register" class="auth-panel" hidden>
+        <div id="server-panel-register" class="auth-panel" hidden aria-hidden="true">
           <form id="form-server-register" class="auth-form" autocomplete="on">
             <div class="field">
               <label for="server-register-username">Username</label>

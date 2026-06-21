@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from server import users as user_repo
+from server.config import AHAR_ALLOW_PUBLIC_REGISTER
 from server.dependencies import require_user
 from server.sessions import SESSION_COOKIE, create_session, delete_session, session_days
 
@@ -14,13 +15,13 @@ router = APIRouter(tags=["auth"])
 
 class LoginIn(BaseModel):
     username: str = Field(min_length=3)
-    password: str = Field(min_length=8)
+    password: str = Field(min_length=6)
     remember_me: bool = True
 
 
 class RegisterIn(BaseModel):
     username: str = Field(min_length=3)
-    password: str = Field(min_length=8)
+    password: str = Field(min_length=6)
     display_name: str = ""
     remember_me: bool = True
 
@@ -56,8 +57,18 @@ def api_login(body: LoginIn, response: Response) -> dict:
     return _login_user(user, response, body.remember_me)
 
 
+@router.get("/api/auth/config")
+def api_auth_config() -> dict:
+    return {"allow_public_register": AHAR_ALLOW_PUBLIC_REGISTER}
+
+
 @router.post("/api/auth/register")
 def api_register(body: RegisterIn, response: Response) -> dict:
+    if not AHAR_ALLOW_PUBLIC_REGISTER:
+        raise HTTPException(
+            status_code=403,
+            detail="Registration is disabled. Ask the admin for an account.",
+        )
     try:
         user = user_repo.create_user(body.username, body.password, body.display_name)
     except ValueError as exc:

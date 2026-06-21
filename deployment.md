@@ -46,6 +46,33 @@ The last command prints your public link, e.g. `https://something-random.tryclou
 
 ---
 
+## Admin: create user accounts
+
+Public registration is **disabled**. Create accounts on the server only:
+
+```bash
+cd /opt/ahar-tracker
+
+# Create a user (share username + password manually)
+.venv/bin/python scripts/manage_db.py create-user apoorv 'YourPassword12' -n "Apoorv"
+
+# List all accounts (shows user id)
+.venv/bin/python scripts/manage_db.py list-users
+
+# Delete a user
+.venv/bin/python scripts/manage_db.py delete-user apoorv
+```
+
+Or add to `.env` before first start:
+
+```
+AHAR_BOOTSTRAP_USERS=apoorv:YourPassword12,partner:PartnerPass12
+```
+
+Then run `.venv/bin/python scripts/manage_db.py bootstrap`.
+
+---
+
 ## Day-to-day updates
 
 **Mac:** `git push`

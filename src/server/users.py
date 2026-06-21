@@ -42,8 +42,8 @@ def _public_user(user: dict) -> dict:
 def create_user(username: str, plain_password: str, display_name: str = "") -> dict:
     if get_user_by_username(username):
         raise ValueError("Username already taken")
-    if len(plain_password) < 8:
-        raise ValueError("Password must be at least 8 characters")
+    if len(plain_password) < 6:
+        raise ValueError("Password must be at least 6 characters")
     record = new_user_record(username, plain_password, display_name)
     with get_connection() as conn:
         conn.execute(
@@ -91,3 +91,11 @@ def delete_user_account(user_id: str) -> None:
         conn.execute("DELETE FROM user_state WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
         conn.commit()
+
+
+def delete_user_by_username(username: str) -> dict | None:
+    user = get_user_by_username(username)
+    if not user:
+        return None
+    delete_user_account(user["id"])
+    return {"id": user["id"], "username": user["username"]}
