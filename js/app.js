@@ -655,7 +655,16 @@ async function boot() {
         };
       } catch (e) {}
 
-      initMainApp();
+      try {
+        initMainApp();
+      } catch (e) {
+        started = false;
+        console.error("Main app failed:", e);
+        const msg = e?.message ? String(e.message) : "App failed to start. Try refresh.";
+        showToast(msg);
+        const errEl = document.getElementById("server-error-login");
+        if (errEl) errEl.textContent = msg;
+      }
     }
 
     initServerAuth({ onAuthed: startAuthedSession, showToast });
