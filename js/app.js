@@ -238,14 +238,25 @@ function renderDashboardView() {
   }
 }
 
-function hideLoginScreen() {
+function forceHideBlockingLayers() {
   ["server-login-screen", "marketing-landing", "landing-screen", "auth-screen"].forEach((id) => {
     const el = document.getElementById(id);
-    if (el) {
-      el.hidden = true;
-      el.setAttribute("aria-hidden", "true");
-    }
+    if (!el) return;
+    el.hidden = true;
+    el.setAttribute("aria-hidden", "true");
+    el.style.setProperty("display", "none", "important");
+    el.style.setProperty("pointer-events", "none", "important");
   });
+  const backdrop = document.getElementById("sidebar-backdrop");
+  if (backdrop) {
+    backdrop.hidden = true;
+    backdrop.setAttribute("aria-hidden", "true");
+  }
+  document.body.style.overflow = "";
+}
+
+function hideLoginScreen() {
+  forceHideBlockingLayers();
 }
 
 function showServerLoginError(msg) {
@@ -272,203 +283,213 @@ function signOutServer() {
     .finally(() => location.reload());
 }
 
+function handleNavTo(id, btn) {
+  if (!id) return;
+  setView(id);
+  if (id === "meals") renderMealsView();
+  if (id === "dashboard") renderDashboardView();
+  if (id === "settings") fillSettingsForm(viewState());
+  if (id === "log" && btn?.getAttribute("data-new-meal") === "true") {
+    window.dispatchEvent(new CustomEvent("diet-open-new-meal"));
+  }
+}
+
 function initMainApp() {
   if (mainAppInitialized) return;
-  mainAppInitialized = true;
   const shell = document.getElementById("app-shell");
   if (!shell) {
     throw new Error("Missing #app-shell. index.html may be incomplete.");
   }
-  shell.hidden = false;
-  const fv = document.getElementById("footer-version");
-  if (fv) {
-    const local =
-      location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.hostname === "";
-    fv.innerHTML = `आहार Tracker · <code>v${APP_VERSION}</code> · <a href="${DEVELOPER_SITE}" target="_blank" rel="noopener noreferrer">${DEVELOPER_NAME}</a>${local ? " · running locally" : ""}`;
-  }
-  refreshUserSelects();
-  const stateRef = isServerMode() ? cloudMyState : appState;
-  fillSettingsForm(viewState());
-  initLogDefaults();
-  bindSettings(stateRef, passwordRef, persist, showToast, () => {
-    if (isServerMode()) {
-      signOutServer();
-      return;
+
+  let closeMobileSidebarIfNeeded = () => {};
+
+  try {
+    const fv = document.getElementById("footer-version");
+    if (fv) {
+      const local =
+        location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.hostname === "";
+      fv.innerHTML = `आहार Tracker · <code>v${APP_VERSION}</code> · <a href="${DEVELOPER_SITE}" target="_blank" rel="noopener noreferrer">${DEVELOPER_NAME}</a>${local ? " · running locally" : ""}`;
     }
-    sessionPassword = "";
-    location.reload();
-  });
-  bindReminderSettings(showToast);
-  if (isRemindersEnabled()) {
-    startReminderScheduler(showToast);
-  }
-
-  function closeMobileSidebarIfNeeded() {
-    if (!window.matchMedia("(max-width: 899px)").matches) return;
-    const sidebar = document.getElementById("app-sidebar");
-    const backdrop = document.getElementById("sidebar-backdrop");
-    const toggle = document.getElementById("sidebar-toggle");
-    sidebar?.classList.remove("is-open");
-    if (backdrop) {
-      backdrop.hidden = true;
-      backdrop.setAttribute("aria-hidden", "true");
-    }
-    if (toggle) {
-      toggle.setAttribute("aria-expanded", "false");
-      toggle.setAttribute("aria-label", "Open menu");
-    }
-    document.body.style.overflow = "";
-  }
-
-  function bindMobileSidebar() {
-    const sidebar = document.getElementById("app-sidebar");
-    const backdrop = document.getElementById("sidebar-backdrop");
-    const btn = document.getElementById("sidebar-toggle");
-    if (!sidebar || !backdrop || !btn) return;
-
-    const mq = window.matchMedia("(max-width: 899px)");
-
-    function setSidebarOpen(open) {
-      if (!mq.matches) {
-        sidebar.classList.remove("is-open");
-        backdrop.hidden = true;
-        backdrop.setAttribute("aria-hidden", "true");
-        btn.setAttribute("aria-expanded", "false");
-        document.body.style.overflow = "";
+    refreshUserSelects();
+    const stateRef = isServerMode() ? cloudMyState : appState;
+    fillSettingsForm(viewState());
+    initLogDefaults();
+    bindSettings(stateRef, passwordRef, persist, showToast, () => {
+      if (isServerMode()) {
+        signOutServer();
         return;
       }
-      sidebar.classList.toggle("is-open", open);
-      backdrop.hidden = !open;
-      backdrop.setAttribute("aria-hidden", open ? "false" : "true");
-      btn.setAttribute("aria-expanded", open ? "true" : "false");
-      btn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
-      document.body.style.overflow = open ? "hidden" : "";
+      sessionPassword = "";
+      location.reload();
+    });
+    bindReminderSettings(showToast);
+    if (isRemindersEnabled()) {
+      startReminderScheduler(showToast);
     }
 
-    btn.addEventListener("click", () => {
-      const open = !sidebar.classList.contains("is-open");
-      setSidebarOpen(open);
-    });
-
-    backdrop.addEventListener("click", () => setSidebarOpen(false));
-
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && mq.matches) setSidebarOpen(false);
-    });
-
-    mq.addEventListener("change", () => {
-      if (!mq.matches) setSidebarOpen(false);
-    });
-  }
-
-  bindMobileSidebar();
-
-  bindLogForm(stateRef, passwordRef, persist, showToast, () => {
-    setView("meals");
-    renderMealsView();
-    closeMobileSidebarIfNeeded();
-    requestAnimationFrame(() => {
-      const main = document.querySelector(".app-main");
-      if (main) main.scrollTop = 0;
-      document.getElementById("view-meals")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      try {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      } catch (e) {
-        window.scrollTo(0, 0);
+    closeMobileSidebarIfNeeded = function () {
+      if (!window.matchMedia("(max-width: 899px)").matches) return;
+      const sidebar = document.getElementById("app-sidebar");
+      const backdrop = document.getElementById("sidebar-backdrop");
+      const toggle = document.getElementById("sidebar-toggle");
+      sidebar?.classList.remove("is-open");
+      if (backdrop) {
+        backdrop.hidden = true;
+        backdrop.setAttribute("aria-hidden", "true");
       }
-    });
-  });
+      if (toggle) {
+        toggle.setAttribute("aria-expanded", "false");
+        toggle.setAttribute("aria-label", "Open menu");
+      }
+      document.body.style.overflow = "";
+    };
 
-  shell.addEventListener("click", (e) => {
-    const inviteBtn = e.target.closest("[data-invite-partner]");
-    if (inviteBtn && shell.contains(inviteBtn) && isServerMode()) {
-      e.preventDefault();
-      if (!cloudUser || !cloudHouseholdId) return;
-      (async () => {
-        try {
-          const toUsername = prompt("Partner username. Only that account can accept the invite.");
-          if (!toUsername) return;
-          const token = await createInvite(cloudHouseholdId, cloudUser.uid, toUsername);
-          const u = new URL(location.href);
-          u.searchParams.set("invite", token);
-          const link = u.toString();
-          const out = document.querySelector("[data-invite-link]");
-          if (out) {
-            out.style.display = "block";
-            out.textContent = link;
-          }
-          try {
-            await navigator.clipboard.writeText(link);
-            showToast("Invite link copied.");
-          } catch {
-            showToast("Invite link created.");
-          }
-        } catch (err) {
-          console.warn(err);
-          showToast(
-            err?.message
-              ? String(err.message)
-              : "Could not create invite link. Check Firestore rules and that you are signed in."
-          );
+    (function bindMobileSidebar() {
+      const sidebar = document.getElementById("app-sidebar");
+      const backdrop = document.getElementById("sidebar-backdrop");
+      const btn = document.getElementById("sidebar-toggle");
+      if (!sidebar || !backdrop || !btn) return;
+
+      const mq = window.matchMedia("(max-width: 899px)");
+
+      function setSidebarOpen(open) {
+        if (!mq.matches) {
+          sidebar.classList.remove("is-open");
+          backdrop.hidden = true;
+          backdrop.setAttribute("aria-hidden", "true");
+          btn.setAttribute("aria-expanded", "false");
+          document.body.style.overflow = "";
+          return;
         }
-      })();
-      return;
-    }
-    const btn = e.target.closest("[data-nav]");
-    if (!btn || !shell.contains(btn)) return;
-    const id = btn.getAttribute("data-nav");
-    if (!id) return;
-    setView(id);
-    if (id === "meals") renderMealsView();
-    if (id === "dashboard") renderDashboardView();
-    if (id === "settings") fillSettingsForm(appState);
-    if (id === "log" && btn.getAttribute("data-new-meal") === "true") {
-      window.dispatchEvent(new CustomEvent("diet-open-new-meal"));
-    }
-    closeMobileSidebarIfNeeded();
-  });
+        sidebar.classList.toggle("is-open", open);
+        backdrop.hidden = !open;
+        backdrop.setAttribute("aria-hidden", open ? "false" : "true");
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+        btn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+        document.body.style.overflow = open ? "hidden" : "";
+      }
 
-  document.getElementById("filter-user")?.addEventListener("change", renderMealsView);
-  ["meals-search", "meals-filter-category", "meals-date-from", "meals-date-to"].forEach((id) => {
-    document.getElementById(id)?.addEventListener("input", renderMealsView);
-    document.getElementById(id)?.addEventListener("change", renderMealsView);
-  });
+      btn.addEventListener("click", () => {
+        const open = !sidebar.classList.contains("is-open");
+        setSidebarOpen(open);
+      });
 
-  const mealsFiltersPanel = document.getElementById("meals-filters-panel");
-  const btnMealsFiltersToggle = document.getElementById("btn-meals-filters-toggle");
-  btnMealsFiltersToggle?.addEventListener("click", () => {
-    if (!mealsFiltersPanel) return;
-    mealsFiltersPanel.hidden = !mealsFiltersPanel.hidden;
-    btnMealsFiltersToggle.setAttribute("aria-expanded", (!mealsFiltersPanel.hidden).toString());
-  });
+      backdrop.addEventListener("click", () => setSidebarOpen(false));
 
-  window.addEventListener("diet-insights-rerender", () => renderDashboardView());
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && mq.matches) setSidebarOpen(false);
+      });
 
-  bindWeekNav(
-    () => weekCursor,
-    (d) => {
-      weekCursor = d;
-      persistWeekCursor(d);
-    },
-    () => renderDashboardView()
-  );
+      mq.addEventListener("change", () => {
+        if (!mq.matches) setSidebarOpen(false);
+      });
+    })();
 
-  bindDashboardScope(() => renderDashboardView());
+    bindLogForm(stateRef, passwordRef, persist, showToast, () => {
+      setView("meals");
+      renderMealsView();
+      closeMobileSidebarIfNeeded();
+    });
 
-  window.addEventListener("diet-users-updated", () => {
-    refreshUserSelects();
-    renderMealsView();
+    document.querySelectorAll("[data-nav]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        const id = btn.getAttribute("data-nav");
+        if (!id) return;
+        e.preventDefault();
+        handleNavTo(id, btn);
+        closeMobileSidebarIfNeeded();
+      });
+    });
+
+    shell.addEventListener("click", (e) => {
+      const inviteBtn = e.target.closest("[data-invite-partner]");
+      if (inviteBtn && shell.contains(inviteBtn) && isServerMode()) {
+        e.preventDefault();
+        if (!cloudUser || !cloudHouseholdId) return;
+        void (async () => {
+          try {
+            const toUsername = prompt("Partner username. Only that account can accept the invite.");
+            if (!toUsername) return;
+            const token = await createInvite(cloudHouseholdId, cloudUser.uid, toUsername);
+            const u = new URL(location.href);
+            u.searchParams.set("invite", token);
+            const link = u.toString();
+            const out = document.querySelector("[data-invite-link]");
+            if (out) {
+              out.style.display = "block";
+              out.textContent = link;
+            }
+            try {
+              await navigator.clipboard.writeText(link);
+              showToast("Invite link copied.");
+            } catch {
+              showToast("Invite link created.");
+            }
+          } catch (err) {
+            console.warn(err);
+            showToast(err?.message ? String(err.message) : "Could not create invite link.");
+          }
+        })();
+        return;
+      }
+      const btn = e.target.closest("[data-nav]");
+      if (!btn || !shell.contains(btn)) return;
+      e.preventDefault();
+      handleNavTo(btn.getAttribute("data-nav"), btn);
+      closeMobileSidebarIfNeeded();
+    });
+
+    document.getElementById("filter-user")?.addEventListener("change", renderMealsView);
+    ["meals-search", "meals-filter-category", "meals-date-from", "meals-date-to"].forEach((id) => {
+      document.getElementById(id)?.addEventListener("input", renderMealsView);
+      document.getElementById(id)?.addEventListener("change", renderMealsView);
+    });
+
+    const mealsFiltersPanel = document.getElementById("meals-filters-panel");
+    const btnMealsFiltersToggle = document.getElementById("btn-meals-filters-toggle");
+    btnMealsFiltersToggle?.addEventListener("click", () => {
+      if (!mealsFiltersPanel) return;
+      mealsFiltersPanel.hidden = !mealsFiltersPanel.hidden;
+      btnMealsFiltersToggle.setAttribute("aria-expanded", (!mealsFiltersPanel.hidden).toString());
+    });
+
+    window.addEventListener("diet-insights-rerender", () => renderDashboardView());
+
+    bindWeekNav(
+      () => weekCursor,
+      (d) => {
+        weekCursor = d;
+        persistWeekCursor(d);
+      },
+      () => renderDashboardView()
+    );
+
+    bindDashboardScope(() => renderDashboardView());
+
+    window.addEventListener("diet-users-updated", () => {
+      refreshUserSelects();
+      renderMealsView();
+      renderDashboardView();
+    });
+
+    setView("dashboard");
     renderDashboardView();
-  });
+    renderMealsView();
 
-  setView("dashboard");
-  renderDashboardView();
-  renderMealsView();
+    document.getElementById("modal-edit")?.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") document.getElementById("modal-edit-close")?.click();
+    });
 
-  document.getElementById("modal-edit")?.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") document.getElementById("modal-edit-close")?.click();
-  });
-
+    forceHideBlockingLayers();
+    shell.hidden = false;
+    shell.removeAttribute("aria-hidden");
+    mainAppInitialized = true;
+    window.__DIET_APP_READY__ = true;
+  } catch (e) {
+    mainAppInitialized = false;
+    shell.hidden = true;
+    throw e;
+  }
 }
 
 function start() {
