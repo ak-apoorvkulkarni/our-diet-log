@@ -18,3 +18,8 @@ AHAR_ALLOW_PUBLIC_REGISTER = os.environ.get("AHAR_ALLOW_PUBLIC_REGISTER", "false
     "true",
     "yes",
 )
+AHAR_COOKIE_SECURE = os.environ.get("AHAR_COOKIE_SECURE", "false").lower() in (
+    "1",
+    "true",
+    "yes",
+)

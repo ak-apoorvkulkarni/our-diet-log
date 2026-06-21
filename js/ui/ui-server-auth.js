@@ -20,6 +20,7 @@ export function initServerAuth({ onAuthed, showToast }) {
   const localOnly = document.getElementById("auth-local-only");
   const formLogin = document.getElementById("form-server-login");
   const errLogin = document.getElementById("server-error-login");
+  let sessionChecked = false;
 
   hideEl(marketingEl);
   hideEl(landingEl);
@@ -37,6 +38,17 @@ export function initServerAuth({ onAuthed, showToast }) {
     panelLogin.style.removeProperty("display");
   }
 
+  async function tryRestoreSession() {
+    if (sessionChecked) return;
+    sessionChecked = true;
+    try {
+      const user = await getCurrentUser();
+      if (user) await onAuthed(toSessionUser(user));
+    } catch (e) {
+      console.warn("Session check:", e);
+    }
+  }
+
   formLogin?.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (errLogin) errLogin.textContent = "";
@@ -47,25 +59,26 @@ export function initServerAuth({ onAuthed, showToast }) {
       return;
     }
     const btn = formLogin.querySelector('button[type="submit"]');
-    if (btn) btn.disabled = true;
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Signing in…";
+    }
     try {
       const user = await login(username, password, true);
       await onAuthed(toSessionUser(user));
     } catch (err) {
-      if (errLogin) errLogin.textContent = err?.message || "Could not sign in.";
+      const msg = err?.message || "Could not sign in.";
+      if (errLogin) errLogin.textContent = msg;
+      showToast(msg);
     } finally {
-      if (btn) btn.disabled = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Sign in";
+      }
     }
   });
 
-  void (async () => {
-    try {
-      const user = await getCurrentUser();
-      if (user) await onAuthed(toSessionUser(user));
-    } catch (e) {
-      console.warn("Session check:", e);
-    }
-  })();
+  void tryRestoreSession();
 }
 
 export { logout as signOutServer };

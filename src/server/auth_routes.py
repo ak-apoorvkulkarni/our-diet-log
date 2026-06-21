@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from server import users as user_repo
-from server.config import AHAR_ALLOW_PUBLIC_REGISTER
+from server.config import AHAR_ALLOW_PUBLIC_REGISTER, AHAR_COOKIE_SECURE
 from server.dependencies import require_user
 from server.sessions import SESSION_COOKIE, create_session, delete_session, session_days
 
@@ -26,35 +26,53 @@ class RegisterIn(BaseModel):
     remember_me: bool = True
 
 
-def _set_session_cookie(response: Response, session_id: str, remember_me: bool) -> None:
+def _cookie_secure(request: Request) -> bool:
+    if AHAR_COOKIE_SECURE:
+        return True
+    if request.url.scheme == "https":
+        return True
+    proto = request.headers.get("x-forwarded-proto", "")
+    return proto.split(",")[0].strip().lower() == "https"
+
+
+def _set_session_cookie(
+    response: Response, request: Request, session_id: str, remember_me: bool
+) -> None:
     days = session_days(remember_me)
+    secure = _cookie_secure(request)
     response.set_cookie(
         key=SESSION_COOKIE,
         value=session_id,
         max_age=days * 24 * 60 * 60,
         httponly=True,
         samesite="lax",
+        secure=secure,
         path="/",
     )
 
 
-def _clear_session_cookie(response: Response) -> None:
-    response.delete_cookie(key=SESSION_COOKIE, path="/")
+def _clear_session_cookie(response: Response, request: Request) -> None:
+    response.delete_cookie(
+        key=SESSION_COOKIE,
+        path="/",
+        secure=_cookie_secure(request),
+        samesite="lax",
+    )
 
 
-def _login_user(user: dict, response: Response, remember_me: bool) -> dict:
+def _login_user(user: dict, request: Request, response: Response, remember_me: bool) -> dict:
     days = session_days(remember_me)
     session_id = create_session(user["id"], days=days)
-    _set_session_cookie(response, session_id, remember_me)
+    _set_session_cookie(response, request, session_id, remember_me)
     return {"ok": True, "user": user}
 
 
 @router.post("/api/auth/login")
-def api_login(body: LoginIn, response: Response) -> dict:
+def api_login(body: LoginIn, request: Request, response: Response) -> dict:
     user = user_repo.authenticate_user(body.username, body.password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid username or password")
-    return _login_user(user, response, body.remember_me)
+    return _login_user(user, request, response, body.remember_me)
 
 
 @router.get("/api/auth/config")
@@ -63,7 +81,7 @@ def api_auth_config() -> dict:
 
 
 @router.post("/api/auth/register")
-def api_register(body: RegisterIn, response: Response) -> dict:
+def api_register(body: RegisterIn, request: Request, response: Response) -> dict:
     if not AHAR_ALLOW_PUBLIC_REGISTER:
         raise HTTPException(
             status_code=403,
@@ -73,7 +91,7 @@ def api_register(body: RegisterIn, response: Response) -> dict:
         user = user_repo.create_user(body.username, body.password, body.display_name)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return _login_user(user, response, body.remember_me)
+    return _login_user(user, request, response, body.remember_me)
 
 
 @router.post("/api/auth/logout")
@@ -81,7 +99,7 @@ def api_logout(request: Request, response: Response) -> dict:
     session_id = request.cookies.get(SESSION_COOKIE)
     if session_id:
         delete_session(session_id)
-    _clear_session_cookie(response)
+    _clear_session_cookie(response, request)
     return {"ok": True}
 
 

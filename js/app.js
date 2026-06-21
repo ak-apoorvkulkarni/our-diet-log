@@ -479,7 +479,12 @@ async function boot() {
             }
 
             await ensureHouseholdExists(cloudHouseholdId, user.uid);
-            const meta = await loadHouseholdMeta(cloudHouseholdId);
+            let meta = null;
+            try {
+              meta = await loadHouseholdMeta(cloudHouseholdId);
+            } catch (metaErr) {
+              console.warn("Household meta load skipped:", metaErr);
+            }
             cloudUserId = "u1";
             cloudPartnerUid = (await partnerUidFromHousehold(cloudHouseholdId, user.uid)) || "";
             cloudPartnerName = cloudPartnerUid
@@ -576,7 +581,10 @@ async function boot() {
       } catch (e) {
         started = false;
         console.warn("Server load failed:", e);
-        showToast(e?.message ? String(e.message) : "Could not load your data. Try refresh.");
+        const msg = e?.message ? String(e.message) : "Could not load your data. Try refresh.";
+        showToast(msg);
+        const errEl = document.getElementById("server-error-login");
+        if (errEl) errEl.textContent = msg;
         return;
       }
 

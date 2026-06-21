@@ -66,7 +66,8 @@ export async function loadUserState(uid) {
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(await _err(res));
   const data = await res.json();
-  return ensureStateShape(data?.state);
+  if (data?.state == null) return null;
+  return ensureStateShape(data.state);
 }
 
 export function stripServerMealImagesForSave(state) {

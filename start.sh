@@ -31,4 +31,6 @@ exec "$APP_DIR/.venv/bin/uvicorn" server.main:app \
   --host "$HOST" \
   --port "$PORT" \
   --workers "$WORKERS" \
+  --proxy-headers \
+  --forwarded-allow-ips='*' \
   --app-dir "$APP_DIR/src"
