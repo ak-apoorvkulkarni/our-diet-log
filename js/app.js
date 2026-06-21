@@ -5,7 +5,7 @@ import { ensureStateShape } from "./models.js";
 import { saveEncrypted } from "./storage.js";
 import { APP_VERSION, DEVELOPER_NAME, DEVELOPER_SITE } from "./version.js";
 import { initAuthScreen } from "./ui/ui-auth.js";
-import { initServerAuth, signOutServer } from "./ui/ui-server-auth.js";
+import { initServerAuth, hideLoginScreen, signOutServer } from "./ui/ui-server-auth.js";
 import { detectServerMode, isServerMode } from "./server-config.js";
 import {
   acceptInvite,
@@ -451,7 +451,6 @@ async function boot() {
   if (serverMode) {
     const params = new URLSearchParams(location.search || "");
     const inviteToken = String(params.get("invite") || "").trim();
-    const BOOT_MS = 60000;
     let started = false;
 
     async function startAuthedSession(user) {
@@ -459,125 +458,58 @@ async function boot() {
       started = true;
       cloudUser = user;
       try {
-        await Promise.race([
-          (async () => {
-            if (inviteToken) {
-              cloudHouseholdId = await acceptInvite(
-                inviteToken,
-                user.uid,
-                user.displayName,
-                user.email || user.username
-              );
-              try {
-                const u = new URL(location.href);
-                u.searchParams.delete("invite");
-                history.replaceState({}, "", u.toString());
-              } catch (e) {}
-            } else {
-              const fromProfile = await loadUserHouseholdIdFromProfile(user.uid);
-              cloudHouseholdId = fromProfile || householdIdForUser(user.uid);
-            }
+        if (inviteToken) {
+          cloudHouseholdId = await acceptInvite(
+            inviteToken,
+            user.uid,
+            user.displayName,
+            user.email || user.username
+          );
+          try {
+            const u = new URL(location.href);
+            u.searchParams.delete("invite");
+            history.replaceState({}, "", u.toString());
+          } catch (e) {}
+        } else {
+          cloudHouseholdId = householdIdForUser(user.uid);
+        }
 
-            await ensureHouseholdExists(cloudHouseholdId, user.uid);
-            let meta = null;
-            try {
-              meta = await loadHouseholdMeta(cloudHouseholdId);
-            } catch (metaErr) {
-              console.warn("Household meta load skipped:", metaErr);
-            }
-            cloudUserId = "u1";
-            cloudPartnerUid = (await partnerUidFromHousehold(cloudHouseholdId, user.uid)) || "";
-            cloudPartnerName = cloudPartnerUid
-              ? String(meta?.profiles?.[cloudPartnerUid]?.name || "Partner")
-              : "";
+        await ensureHouseholdExists(cloudHouseholdId, user.uid);
+        await ensureUserProfile(user.uid, {
+          householdId: cloudHouseholdId,
+          name: String(user.displayName || ""),
+        });
 
-            await ensureUserProfile(user.uid, {
-              householdId: cloudHouseholdId,
-              name: String(user.displayName || ""),
-            });
+        let myState = await loadUserState(user.uid);
+        if (!myState) {
+          myState = buildDefaultStateForUser(user.displayName);
+          await saveUserState(user.uid, cloudHouseholdId, myState);
+        }
 
-            let myState = await loadUserState(user.uid);
-            if (!myState) {
-              try {
-                const legacy = await loadHouseholdState(cloudHouseholdId);
-                const slots = meta?.slots || {};
-                const legacyUserId = slots.u2 === user.uid ? "u2" : "u1";
-                if (legacy && Array.isArray(legacy.meals)) {
-                  const myMeals = legacy.meals
-                    .filter((m) => String(m.userId || "u1") === legacyUserId)
-                    .map((m) => ({ ...m, userId: "u1" }));
-                  const legacyName =
-                    legacy?.users?.find((u) => u.id === legacyUserId)?.name ||
-                    String(user.displayName || "You");
-                  myState = ensureStateShape({
-                    ...legacy,
-                    users: [{ id: "u1", name: legacyName }],
-                    meals: myMeals,
-                  });
-                  await saveUserState(user.uid, cloudHouseholdId, myState);
-                }
-              } catch (e) {
-                console.warn("Legacy migration skipped:", e);
-              }
-            }
-            if (!myState) {
-              myState = buildDefaultStateForUser(user.displayName);
-              await saveUserState(user.uid, cloudHouseholdId, myState);
-            }
-            cloudMyState = ensureStateShape(myState);
-            await hydrateMealImagesForState(user.uid, cloudMyState);
+        cloudMyState = ensureStateShape(myState);
+        cloudUserId = "u1";
+        cloudPartnerUid = "";
+        cloudPartnerState = null;
+        appState = cloudMyState;
 
-            if (cloudPartnerUid) {
-              try {
-                cloudPartnerState = await loadUserState(cloudPartnerUid);
-                if (cloudPartnerState) {
-                  await hydrateMealImagesForState(cloudPartnerUid, cloudPartnerState);
-                }
-              } catch (pe) {
-                console.warn("Partner state unavailable (continuing solo):", pe);
-                cloudPartnerState = null;
-                showToast(
-                  "Could not load your partner's data. You can still use your log; try refresh."
-                );
-              }
-            } else {
-              cloudPartnerState = null;
-            }
+        try {
+          const meta = await loadHouseholdMeta(cloudHouseholdId);
+          cloudPartnerUid = (await partnerUidFromHousehold(cloudHouseholdId, user.uid)) || "";
+          cloudPartnerName = cloudPartnerUid
+            ? String(meta?.profiles?.[cloudPartnerUid]?.name || "Partner")
+            : "";
+          if (cloudPartnerUid) {
+            cloudPartnerState = await loadUserState(cloudPartnerUid);
+          }
+        } catch (e) {
+          console.warn("Partner load skipped:", e);
+        }
 
-            if (!cloudPartnerUid) {
-              let dirty = false;
-              if (cloudMyState.users?.some((u) => u.id === "u2")) {
-                cloudMyState.users = cloudMyState.users.filter((u) => u.id !== "u2");
-                dirty = true;
-              }
-              if (cloudMyState.meals?.some((m) => String(m.userId || "u1") === "u2")) {
-                cloudMyState.meals = cloudMyState.meals.filter(
-                  (m) => String(m.userId || "u1") !== "u2"
-                );
-                dirty = true;
-              }
-              if (!cloudMyState.users?.length) {
-                cloudMyState.users = [{ id: "u1", name: String(user.displayName || "You") }];
-                dirty = true;
-              }
-              if (dirty) {
-                await saveUserState(
-                  user.uid,
-                  cloudHouseholdId,
-                  stripServerMealImagesForSave(cloudMyState)
-                );
-              }
-            }
-
-            appState = cloudMyState;
-          })(),
-          new Promise((_, reject) =>
-            setTimeout(
-              () => reject(new Error("Loading your data timed out. Check your network and try again.")),
-              BOOT_MS
-            )
-          ),
-        ]);
+        try {
+          await hydrateMealImagesForState(user.uid, cloudMyState);
+        } catch (e) {
+          console.warn("Image hydrate skipped:", e);
+        }
       } catch (e) {
         started = false;
         console.warn("Server load failed:", e);
@@ -585,16 +517,15 @@ async function boot() {
         showToast(msg);
         const errEl = document.getElementById("server-error-login");
         if (errEl) errEl.textContent = msg;
+        const btn = document.querySelector("#form-server-login button[type=submit]");
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "Sign in";
+        }
         return;
       }
 
-      ["marketing-landing", "landing-screen", "auth-screen"].forEach((id) => {
-        const el = document.getElementById(id);
-        if (el) {
-          el.hidden = true;
-          el.setAttribute("aria-hidden", "true");
-        }
-      });
+      hideLoginScreen();
 
       const syncLine = document.getElementById("sync-status-line");
       if (syncLine) {

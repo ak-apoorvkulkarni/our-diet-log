@@ -737,7 +737,7 @@
     </script>
     <!-- Dynamic import catches failures; import.meta.url fixes subpath hosts (e.g. github.io/repo/). -->
     <script type="module">
-      import(new URL("./js/app.js", import.meta.url).href).catch(function (err) {
+      import(new URL("./js/app.js?v=1.8.35", import.meta.url).href).catch(function (err) {
         console.error(err);
         if (typeof window.__dietReportLoadFailure === "function") {
           window.__dietReportLoadFailure(
