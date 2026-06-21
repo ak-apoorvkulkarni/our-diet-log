@@ -1,5 +1,6 @@
 /**
- * Server login gate — plain script, no modules. Runs before app.js loads.
+ * Server login gate — plain script, no modules.
+ * Login at /  →  after sign-in redirect to /app  →  load the diary app.
  */
 (function () {
   "use strict";
@@ -10,9 +11,20 @@
     return document.getElementById(id);
   }
 
+  function isAppPage() {
+    var p = location.pathname || "";
+    return p === "/app" || p.endsWith("/app");
+  }
+
   function setError(msg) {
     var el = $("server-login-error");
     if (el) el.textContent = msg || "";
+  }
+
+  function setBootError(msg) {
+    var el = $("app-boot-error");
+    if (el) el.textContent = msg || "";
+    if (msg) showEl("app-boot-screen");
   }
 
   function getToken() {
@@ -56,6 +68,8 @@
     if (!el) return;
     el.hidden = true;
     el.setAttribute("aria-hidden", "true");
+    el.style.setProperty("display", "none", "important");
+    el.style.setProperty("pointer-events", "none", "important");
   }
 
   function showEl(id) {
@@ -63,22 +77,27 @@
     if (!el) return;
     el.hidden = false;
     el.removeAttribute("aria-hidden");
+    el.style.removeProperty("display");
+    el.style.removeProperty("pointer-events");
   }
 
-  function hideMarketingAndLocalAuth() {
+  function hideAllScreens() {
     hideEl("marketing-landing");
     hideEl("landing-screen");
     hideEl("auth-screen");
+    hideEl("server-login-screen");
+    hideEl("app-boot-screen");
     hideEl("app-shell");
   }
 
   function showLoginScreen() {
-    hideMarketingAndLocalAuth();
+    hideAllScreens();
     showEl("server-login-screen");
   }
 
-  function hideLoginScreen() {
-    hideEl("server-login-screen");
+  function showBootScreen() {
+    hideAllScreens();
+    showEl("app-boot-screen");
   }
 
   function startApp() {
@@ -87,19 +106,22 @@
     }
   }
 
-  function onLoggedIn(user) {
+  function goApp(user) {
     window.__DIET_SERVER_MODE__ = true;
     window.__DIET_SERVER_API_USER__ = user;
-    setError("");
-    hideLoginScreen();
-    startApp();
+    if (isAppPage()) {
+      showBootScreen();
+      startApp();
+    } else {
+      location.replace("/app");
+    }
   }
 
   window.__DIET_SERVER_LOGOUT__ = function () {
     setToken("");
     window.__DIET_SERVER_API_USER__ = null;
     apiFetch("/api/auth/logout", { method: "POST" }).catch(function () {});
-    window.location.reload();
+    location.href = "/";
   };
 
   function bindLoginForm() {
@@ -155,8 +177,7 @@
             throw new Error("Server error — no session. Try again or contact admin.");
           }
           setToken(result.data.session_id);
-          if (btn) btn.textContent = "Opening…";
-          onLoggedIn(result.data.user);
+          goApp(result.data.user);
         })
         .catch(function (err) {
           setError(err && err.message ? err.message : "Could not sign in.");
@@ -179,6 +200,33 @@
     });
   }
 
+  function runServerAppPage() {
+    window.__DIET_SERVER_MODE__ = true;
+    document.documentElement.classList.remove("diet-local-mode");
+    showBootScreen();
+    return checkExistingSession().then(function (user) {
+      if (!user) {
+        location.replace("/");
+        return;
+      }
+      window.__DIET_SERVER_API_USER__ = user;
+      startApp();
+    });
+  }
+
+  function runServerLoginPage() {
+    window.__DIET_SERVER_MODE__ = true;
+    document.documentElement.classList.remove("diet-local-mode");
+    showLoginScreen();
+    bindLoginForm();
+    return checkExistingSession().then(function (user) {
+      if (user) {
+        window.__DIET_SERVER_API_USER__ = user;
+        location.replace("/app");
+      }
+    });
+  }
+
   function run() {
     fetch("/api/health", { credentials: "same-origin" })
       .then(function (res) {
@@ -188,25 +236,25 @@
         if (!health || !health.ok) {
           window.__DIET_SERVER_MODE__ = false;
           document.documentElement.classList.add("diet-local-mode");
-          startApp();
+          if (!isAppPage()) startApp();
+          else location.replace("/");
           return;
         }
 
-        window.__DIET_SERVER_MODE__ = true;
-        document.documentElement.classList.remove("diet-local-mode");
-        showLoginScreen();
-        bindLoginForm();
-
-        return checkExistingSession().then(function (user) {
-          if (user) onLoggedIn(user);
-        });
+        if (isAppPage()) {
+          return runServerAppPage();
+        }
+        return runServerLoginPage();
       })
       .catch(function () {
         window.__DIET_SERVER_MODE__ = false;
         document.documentElement.classList.add("diet-local-mode");
-        startApp();
+        if (!isAppPage()) startApp();
+        else location.replace("/");
       });
   }
+
+  window.__DIET_SET_BOOT_ERROR__ = setBootError;
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", run);

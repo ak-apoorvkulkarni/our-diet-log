@@ -388,7 +388,7 @@
         <div class="auth-card__logo-wrap">
           <img
             class="auth-card__logo"
-            src="assets/logo.png?v=1.8.39"
+            src="assets/logo.png?v=1.8.40"
             alt=""
             width="64"
             height="64"
@@ -408,6 +408,24 @@
           <button type="submit" class="btn btn--primary">Sign in</button>
           <p id="server-login-error" class="auth-error" role="alert" aria-live="assertive"></p>
         </form>
+      </div>
+    </div>
+
+    <div id="app-boot-screen" class="auth-screen" hidden aria-hidden="true">
+      <div class="auth-card" style="text-align: center">
+        <div class="auth-card__logo-wrap">
+          <img
+            class="auth-card__logo"
+            src="assets/logo.png?v=1.8.40"
+            alt=""
+            width="64"
+            height="64"
+            decoding="async"
+          />
+        </div>
+        <h1>आहार Tracker</h1>
+        <p style="margin: 0 0 1rem">Loading your diary…</p>
+        <p id="app-boot-error" class="auth-error" role="alert"></p>
       </div>
     </div>
 
@@ -720,12 +738,12 @@
         };
       })();
     </script>
-    <script src="js/server-gate.js?v=1.8.39"></script>
+    <script src="js/server-gate.js?v=1.8.40"></script>
     <script>
       window.__DIET_START_APP__ = function () {
         if (window.__DIET_APP_LOADING__ || window.__DIET_APP_LOADED__) return;
         window.__DIET_APP_LOADING__ = true;
-        import(new URL("./js/app.js?v=1.8.39", import.meta.url).href)
+        import(new URL("./js/app.js?v=1.8.40", import.meta.url).href)
           .then(function () {
             window.__DIET_APP_LOADED__ = true;
           })

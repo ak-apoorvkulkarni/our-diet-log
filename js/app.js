@@ -239,7 +239,7 @@ function renderDashboardView() {
 }
 
 function forceHideBlockingLayers() {
-  ["server-login-screen", "marketing-landing", "landing-screen", "auth-screen"].forEach((id) => {
+  ["server-login-screen", "app-boot-screen", "marketing-landing", "landing-screen", "auth-screen"].forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
     el.hidden = true;
@@ -707,7 +707,11 @@ async function boot() {
         console.error("Main app failed:", e);
         const msg = e?.message ? String(e.message) : "App failed to start. Try refresh.";
         showToast(msg);
-        showServerLoginError(msg);
+        if (typeof window.__DIET_SET_BOOT_ERROR__ === "function") {
+          window.__DIET_SET_BOOT_ERROR__(msg);
+        } else {
+          showServerLoginError(msg);
+        }
       }
     }
 
