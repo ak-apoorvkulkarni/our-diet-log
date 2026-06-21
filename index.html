@@ -381,10 +381,13 @@
           })
           .then(function (d) {
             if (!d || !d.ok) return;
+            window.__DIET_SERVER_MODE__ = true;
             var m = document.getElementById("marketing-landing");
             var l = document.getElementById("landing-screen");
             var a = document.getElementById("auth-screen");
             var p = document.getElementById("server-panel-login");
+            var local = document.getElementById("auth-local-only");
+            var back = document.getElementById("auth-back-wrap");
             if (m) {
               m.hidden = true;
               m.setAttribute("aria-hidden", "true");
@@ -398,6 +401,11 @@
               a.removeAttribute("aria-hidden");
             }
             if (p) p.hidden = false;
+            if (local) {
+              local.hidden = true;
+              local.setAttribute("aria-hidden", "true");
+            }
+            if (back) back.hidden = true;
           })
           .catch(function () {});
       })();
@@ -525,7 +533,7 @@
 
     <div id="auth-screen" class="auth-screen" hidden aria-hidden="true">
       <div id="auth-card" class="auth-card">
-        <p class="auth-card__back-wrap">
+        <p class="auth-card__back-wrap" id="auth-back-wrap" hidden>
           <button type="button" class="auth-back-link" id="btn-auth-back-landing">Back to welcome</button>
         </p>
         <div class="auth-card__logo-wrap">
@@ -556,11 +564,10 @@
             <button type="submit" class="btn btn--primary">Sign in</button>
             <p id="server-error-login" class="auth-error" role="status"></p>
           </form>
-          <p class="field-hint" style="margin-top: 1rem; text-align: center">
-            Need access? Contact your admin — accounts are created on the server, not here.
-          </p>
         </div>
 
+        <!-- Local encrypted vault UI only (hidden on server — see /api/health bootstrap script). -->
+        <div id="auth-local-only" hidden aria-hidden="true">
         <div id="server-panel-register" class="auth-panel" hidden aria-hidden="true">
           <form id="form-server-register" class="auth-form" autocomplete="on">
             <div class="field">
@@ -613,7 +620,7 @@
           </form>
         </div>
 
-        <div id="auth-panel-create" class="auth-panel">
+        <div id="auth-panel-create" class="auth-panel" hidden>
           <form id="form-create" class="auth-form" autocomplete="on">
             <div class="field">
               <label for="password-new">Create password</label>
@@ -630,6 +637,7 @@
         <script>
           (function () {
             try {
+              if (window.__DIET_SERVER_MODE__) return;
               var s = localStorage.getItem("diet_tracker_salt_v1");
               var p = localStorage.getItem("diet_tracker_payload_v1");
               var hasVault = !!(s && p);
@@ -646,13 +654,12 @@
         <button type="button" id="btn-show-create" class="btn btn--ghost auth-toggle" style="width: 100%; margin-top: 1rem" hidden>
           First time? Create password
         </button>
-        <button type="button" id="btn-show-unlock" class="btn btn--ghost auth-toggle" style="width: 100%; margin-top: 0.5rem">
+        <button type="button" id="btn-show-unlock" class="btn btn--ghost auth-toggle" style="width: 100%; margin-top: 0.5rem" hidden>
           Already have a log, unlock
         </button>
 
         <div class="auth-note">
-          <strong>Privacy:</strong> On the self-hosted server, your meals are stored in a SQLite database on that machine.
-          Share a household dashboard only by sending an invite link to your partner.
+          <strong>Privacy:</strong> Your log is encrypted in this browser before it is saved locally.
         </div>
         <div class="field" style="margin-top: 1.25rem">
           <label for="auth-restore-file">New phone? Restore backup file</label>
@@ -662,6 +669,7 @@
         <button type="button" id="btn-auth-reset" class="btn btn--ghost" style="width: 100%; margin-top: 1rem">
           Erase data on this device (needed for a new password)
         </button>
+        </div>
       </div>
     </div>
 

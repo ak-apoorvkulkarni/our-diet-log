@@ -3,7 +3,7 @@
  */
 import { getCurrentUser, login, logout, toSessionUser } from "./api-auth.js";
 
-function hideOverlay(el) {
+function hideEl(el) {
   if (!el) return;
   el.hidden = true;
   el.setAttribute("aria-hidden", "true");
@@ -11,35 +11,31 @@ function hideOverlay(el) {
 }
 
 export function initServerAuth({ onAuthed, showToast }) {
+  window.__DIET_SERVER_MODE__ = true;
+
   const marketingEl = document.getElementById("marketing-landing");
   const landingEl = document.getElementById("landing-screen");
   const authEl = document.getElementById("auth-screen");
   const panelLogin = document.getElementById("server-panel-login");
+  const localOnly = document.getElementById("auth-local-only");
   const formLogin = document.getElementById("form-server-login");
   const errLogin = document.getElementById("server-error-login");
 
-  function showLogin() {
-    hideOverlay(marketingEl);
-    hideOverlay(landingEl);
-    if (authEl) {
-      authEl.hidden = false;
-      authEl.removeAttribute("aria-hidden");
-      authEl.style.removeProperty("display");
-    }
-    if (panelLogin) panelLogin.hidden = false;
-    document.getElementById("server-panel-register")?.setAttribute("hidden", "");
-    document.getElementById("btn-server-show-register")?.setAttribute("hidden", "");
-    document.getElementById("auth-panel-unlock")?.setAttribute("hidden", "");
-    document.getElementById("auth-panel-create")?.setAttribute("hidden", "");
-    document.getElementById("btn-show-create")?.setAttribute("hidden", "");
-    document.getElementById("btn-show-unlock")?.setAttribute("hidden", "");
-    document.getElementById("btn-auth-reset")?.setAttribute("hidden", "");
-    document.querySelector('[for="auth-restore-file"]')?.parentElement?.setAttribute("hidden", "");
-    const backWrap = document.getElementById("btn-auth-back-landing")?.closest(".auth-card__back-wrap");
-    if (backWrap) backWrap.hidden = true;
-  }
+  hideEl(marketingEl);
+  hideEl(landingEl);
+  hideEl(localOnly);
+  hideEl(document.getElementById("auth-back-wrap"));
 
-  showLogin();
+  if (authEl) {
+    authEl.hidden = false;
+    authEl.removeAttribute("aria-hidden");
+    authEl.style.removeProperty("display");
+  }
+  if (panelLogin) {
+    panelLogin.hidden = false;
+    panelLogin.removeAttribute("aria-hidden");
+    panelLogin.style.removeProperty("display");
+  }
 
   formLogin?.addEventListener("submit", async (e) => {
     e.preventDefault();

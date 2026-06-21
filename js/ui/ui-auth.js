@@ -170,6 +170,15 @@ export function initAuthScreen({ onAuthed, showToast }) {
   }
 
   function showAuthFromLanding(mode) {
+    const localOnly = document.getElementById("auth-local-only");
+    const serverLogin = document.getElementById("server-panel-login");
+    const backWrap = document.getElementById("auth-back-wrap");
+    if (localOnly) {
+      localOnly.hidden = false;
+      localOnly.removeAttribute("aria-hidden");
+    }
+    if (serverLogin) serverLogin.hidden = true;
+    if (backWrap) backWrap.hidden = false;
     if (landingEl) {
       landingEl.hidden = true;
       landingEl.setAttribute("aria-hidden", "true");
