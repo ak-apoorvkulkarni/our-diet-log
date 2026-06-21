@@ -1,7 +1,7 @@
 /**
  * Login screen for self-hosted server mode (admin-created accounts only).
  */
-import { getCurrentUser, login, logout, toSessionUser } from "./api-auth.js";
+import { getCurrentUser, logout, toSessionUser } from "./api-auth.js";
 import { storageAvailable } from "./api-client.js";
 
 function hideEl(el) {
@@ -32,7 +32,6 @@ export function initServerAuth({ onAuthed, showToast }) {
   const authEl = document.getElementById("auth-screen");
   const panelLogin = document.getElementById("server-panel-login");
   const localOnly = document.getElementById("auth-local-only");
-  const formLogin = document.getElementById("form-server-login");
   const errLogin = document.getElementById("server-error-login");
   let sessionChecked = false;
   let booting = false;
@@ -51,6 +50,26 @@ export function initServerAuth({ onAuthed, showToast }) {
     showToast(msg);
   }
 
+  window.__DIET_ON_SERVER_LOGIN__ = async (apiUser) => {
+    if (booting) return;
+    booting = true;
+    try {
+      await onAuthed(toSessionUser(apiUser));
+    } catch (err) {
+      const msg = err?.message || "Could not load your diary after sign-in.";
+      if (errLogin) errLogin.textContent = msg;
+      showToast(msg);
+      const btn = document.querySelector("#form-server-login button[type=submit]");
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Sign in";
+      }
+      throw err;
+    } finally {
+      booting = false;
+    }
+  };
+
   async function tryRestoreSession() {
     if (sessionChecked || booting) return;
     sessionChecked = true;
@@ -66,45 +85,6 @@ export function initServerAuth({ onAuthed, showToast }) {
       booting = false;
     }
   }
-
-  formLogin?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (booting) return;
-    if (errLogin) errLogin.textContent = "";
-    const username = document.getElementById("server-login-username")?.value?.trim();
-    const password = document.getElementById("server-login-password")?.value || "";
-    if (!username || !password) {
-      if (errLogin) errLogin.textContent = "Enter username and password.";
-      return;
-    }
-    if (!storageAvailable()) {
-      if (errLogin) {
-        errLogin.textContent = "Browser storage is blocked. Allow storage for this site and reload.";
-      }
-      return;
-    }
-    const btn = formLogin.querySelector('button[type="submit"]');
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = "Signing in…";
-    }
-    booting = true;
-    try {
-      const user = await login(username, password, true);
-      if (btn) btn.textContent = "Loading your diary…";
-      await onAuthed(toSessionUser(user));
-    } catch (err) {
-      const msg = err?.message || "Could not sign in.";
-      if (errLogin) errLogin.textContent = msg;
-      showToast(msg);
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = "Sign in";
-      }
-    } finally {
-      booting = false;
-    }
-  });
 
   void tryRestoreSession();
 }
