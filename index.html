@@ -219,28 +219,6 @@
             <p class="field-hint">Shown on your dashboard and meal cards.</p>
           </div>
           <div class="card" style="max-width: 560px; margin-bottom: 1.5rem">
-            <h3 class="card__title" style="font-size: 1rem">Gentle reminders</h3>
-            <p class="field-hint">
-              Optional: two soft nudges per day at <strong>1:00 PM</strong> and <strong>9:00 PM</strong> in your device’s
-              local timezone — only if you allow browser notifications.
-            </p>
-            <p class="field-hint" id="reminders-status">Reminders: off</p>
-            <button type="button" class="btn btn--secondary" id="btn-reminders-enable">
-              Turn on gentle reminders (13:00 &amp; 21:00)
-            </button>
-          </div>
-          <div class="card" style="max-width: 560px; margin-bottom: 1.5rem">
-            <h3 class="card__title" style="font-size: 1rem">Backup &amp; restore</h3>
-            <p class="field-hint" style="margin-bottom: 1rem">
-              Download a backup file. Useful as an extra safety net, especially before switching phones.
-            </p>
-            <button type="button" class="btn btn--secondary" id="btn-export-backup">Download backup</button>
-            <div class="field" style="margin-top: 1rem">
-              <label for="backup-file">Restore from file</label>
-              <input id="backup-file" type="file" accept="application/json,.json" />
-            </div>
-          </div>
-          <div class="card" style="max-width: 560px; margin-bottom: 1.5rem">
             <h3 class="card__title" style="font-size: 1rem">About</h3>
             <p class="field-hint" style="margin: 0">
               Developer:
@@ -252,7 +230,6 @@
             <h3 class="card__title" style="font-size: 1rem">Delete account</h3>
             <p class="field-hint" style="margin-bottom: 0.75rem">
               This permanently deletes your meals, photos, and account from the server.
-              app. Download a backup first if you want a copy.
             </p>
             <button type="button" class="btn btn--danger" id="btn-delete-account">Delete my account</button>
           </div>
@@ -707,10 +684,10 @@
         };
       })();
     </script>
-    <script src="js/server-gate.js?v=2.0.0"></script>
+    <script src="js/server-gate.js?v=2.0.1"></script>
     <script>
       (function () {
-        var APP_MODULE = "/js/app.js?v=2.0.0";
+        var APP_MODULE = "/js/app.js?v=2.0.1";
 
         function reportAppLoadError(err) {
           console.error(err);

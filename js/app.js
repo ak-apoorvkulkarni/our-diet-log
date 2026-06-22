@@ -34,7 +34,6 @@ import {
 } from "./ui/ui-dashboard.js";
 import { bindSettings, fillSettingsForm } from "./ui/ui-settings.js";
 import { renderDashboardInsights } from "./ui/ui-insights.js";
-import { bindReminderSettings, startReminderScheduler, isRemindersEnabled } from "./reminders.js";
 let appState = ensureStateShape(null);
 let cloudMyState = ensureStateShape(null);
 let sessionPassword = "";
@@ -280,11 +279,6 @@ function initMainApp() {
       sessionPassword = "";
       location.reload();
     });
-    bindReminderSettings(showToast);
-    if (isRemindersEnabled()) {
-      startReminderScheduler(showToast);
-    }
-
     closeMobileSidebarIfNeeded = function () {
       if (!window.matchMedia("(max-width: 899px)").matches) return;
       const sidebar = document.getElementById("app-sidebar");

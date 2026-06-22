@@ -1,7 +1,6 @@
 /**
- * Settings: rename, backup / restore vault file, lock session.
+ * Settings: display name, sign out, delete account.
  */
-import { applyBackupToLocalStorage, getPbkdf2Iterations } from "../storage.js";
 import { isServerMode } from "../server-config.js";
 import { deleteAllMealImagesFirestore } from "../api-store.js";
 import { apiFetch } from "../api-client.js";
@@ -15,65 +14,6 @@ export function bindSettings(state, passwordRef, persist, showToast, onLock) {
     window.dispatchEvent(new CustomEvent("diet-users-updated"));
   });
 
-  document.getElementById("btn-export-backup")?.addEventListener("click", () => {
-    const isCloud = isServerMode();
-    let blob;
-    if (isCloud) {
-      blob = new Blob(
-        [
-          JSON.stringify(
-            {
-              version: 2,
-              mode: "server",
-              exportedAt: new Date().toISOString(),
-              state,
-            },
-            null,
-            2
-          ),
-        ],
-        { type: "application/json" }
-      );
-    } else {
-      const salt = localStorage.getItem("diet_tracker_salt_v1");
-      const payload = localStorage.getItem("diet_tracker_payload_v1");
-      if (!salt || !payload) {
-        showToast("Nothing to export.");
-        return;
-      }
-      const pbkdf2Iterations = getPbkdf2Iterations();
-      blob = new Blob([JSON.stringify({ version: 1, salt, payload, pbkdf2Iterations }, null, 2)], {
-        type: "application/json",
-      });
-    }
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `diet-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-    showToast("Backup downloaded. Store it somewhere safe.");
-  });
-
-  document.getElementById("backup-file")?.addEventListener("change", async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const text = await file.text();
-    try {
-      const data = JSON.parse(text);
-      if (!data.salt || !data.payload) throw new Error("Invalid backup file");
-      applyBackupToLocalStorage({
-        salt: data.salt,
-        payload: data.payload,
-        pbkdf2Iterations: data.pbkdf2Iterations,
-      });
-      showToast("Backup restored — unlock with your password.");
-      window.location.reload();
-    } catch (err) {
-      showToast(err.message || "Could not import backup.");
-    }
-    e.target.value = "";
-  });
-
   document.getElementById("btn-lock")?.addEventListener("click", () => {
     onLock();
   });
@@ -82,31 +22,6 @@ export function bindSettings(state, passwordRef, persist, showToast, onLock) {
     if (!isServerMode()) {
       showToast("Account deletion is available on the self-hosted server only.");
       return;
-    }
-
-    const wantsBackup = confirm("Download a backup JSON before deleting your account?");
-    if (wantsBackup) {
-      try {
-        const blob = new Blob(
-          [
-            JSON.stringify(
-              { version: 2, mode: "server", exportedAt: new Date().toISOString(), state },
-              null,
-              2
-            ),
-          ],
-          { type: "application/json" }
-        );
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = `diet-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`;
-        a.click();
-        URL.revokeObjectURL(a.href);
-      } catch (e) {
-        console.warn(e);
-        showToast("Could not download backup.");
-        return;
-      }
     }
 
     const typed = prompt('Permanently delete your account and server data? Type "DELETE" to continue.');
