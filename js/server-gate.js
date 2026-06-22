@@ -96,13 +96,20 @@
     el.style.removeProperty("pointer-events");
   }
 
+  function hideAppShellOnly() {
+    var el = $("app-shell");
+    if (!el) return;
+    el.hidden = true;
+    el.setAttribute("aria-hidden", "true");
+  }
+
   function hideAllScreens() {
     hideEl("marketing-landing");
     hideEl("landing-screen");
     hideEl("auth-screen");
     hideEl("server-login-screen");
     hideEl("app-boot-screen");
-    hideEl("app-shell");
+    hideAppShellOnly();
   }
 
   function showLoginScreen() {
@@ -122,7 +129,7 @@
     }
     if (window.__DIET_APP_LOADING__ || window.__DIET_APP_LOADED__) return;
     window.__DIET_APP_LOADING__ = true;
-    import("/js/app.js?v=1.8.42")
+    import("/js/app.js?v=1.8.43")
       .then(function () {
         window.__DIET_APP_LOADED__ = true;
       })

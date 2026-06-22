@@ -239,6 +239,15 @@ function renderDashboardView() {
   }
 }
 
+function revealAppShell() {
+  const shell = document.getElementById("app-shell");
+  if (!shell) return;
+  shell.hidden = false;
+  shell.removeAttribute("aria-hidden");
+  shell.style.removeProperty("display");
+  shell.style.removeProperty("pointer-events");
+}
+
 function forceHideBlockingLayers() {
   ["server-login-screen", "app-boot-screen", "marketing-landing", "landing-screen", "auth-screen"].forEach((id) => {
     const el = document.getElementById(id);
@@ -492,8 +501,7 @@ function initMainApp() {
     });
 
     forceHideBlockingLayers();
-    shell.hidden = false;
-    shell.removeAttribute("aria-hidden");
+    revealAppShell();
     mainAppInitialized = true;
     window.__DIET_APP_READY__ = true;
   } catch (e) {
@@ -733,7 +741,6 @@ async function boot() {
       }
 
       try {
-        hideLoginScreen();
         initMainApp();
       } catch (e) {
         started = false;
