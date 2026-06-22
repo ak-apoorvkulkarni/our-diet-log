@@ -479,7 +479,7 @@ export function bindLogForm(state, passwordRef, persist, showToast, onMealSaved)
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (logSubmitInFlight) return;
-    const userId = document.getElementById("meal-user").value;
+    const userId = document.getElementById("meal-user")?.value || "u1";
     const items = collectMealItemsFromList(mealItemsList);
     if (!items.length) {
       showToast("Add at least one food item.");
@@ -578,7 +578,7 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
   const dateVal = safeDateInputForEdit(meal.datetime);
   const timeVal = safeTimeInputForEdit(meal.datetime);
   document.getElementById("edit-meal-id").value = meal.id;
-  document.getElementById("edit-user").value = meal.userId;
+  // Meals are always logged for the single user (u1).
   const editMealItemsList = document.getElementById("edit-meal-items-list");
   const editMealItemsAddBtn = document.getElementById("btn-add-edit-meal-item");
   bindMealItemsList(editMealItemsList, editMealItemsAddBtn);
@@ -680,7 +680,7 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
 
     const updated = updateMeal(state, meal.id, {
       items: collectMealItemsFromList(editMealItemsList),
-      userId: document.getElementById("edit-user").value,
+      userId: meal.userId || "u1",
       title: collectMealItemsFromList(editMealItemsList)[0] || meal.title,
       datetime: dt,
       calories: document.getElementById("edit-calories").value,

@@ -1,5 +1,5 @@
 /**
- * Settings: rename people, backup / restore vault file, lock session.
+ * Settings: rename, backup / restore vault file, lock session.
  */
 import { applyBackupToLocalStorage, getPbkdf2Iterations } from "../storage.js";
 import { isServerMode } from "../server-config.js";
@@ -11,14 +11,7 @@ export function bindSettings(state, passwordRef, persist, showToast, onLock) {
     const u = state.users.find((x) => x.id === "u1");
     if (u) u.name = e.target.value.trim() || "You";
     await persist(passwordRef());
-    showToast("Names saved.");
-    window.dispatchEvent(new CustomEvent("diet-users-updated"));
-  });
-  document.getElementById("settings-user2-name")?.addEventListener("change", async (e) => {
-    const u = state.users.find((x) => x.id === "u2");
-    if (u) u.name = e.target.value.trim() || "Partner";
-    await persist(passwordRef());
-    showToast("Names saved.");
+    showToast("Name saved.");
     window.dispatchEvent(new CustomEvent("diet-users-updated"));
   });
 
@@ -90,12 +83,6 @@ export function bindSettings(state, passwordRef, persist, showToast, onLock) {
       showToast("Account deletion is available on the self-hosted server only.");
       return;
     }
-    const session = window.__DIET_CLOUD_SESSION__;
-    const hasPartner = Boolean(session?.hasPartner);
-    if (hasPartner) {
-      showToast("Remove your partner before deleting your account.");
-      return;
-    }
 
     const wantsBackup = confirm("Download a backup JSON before deleting your account?");
     if (wantsBackup) {
@@ -144,16 +131,8 @@ export function bindSettings(state, passwordRef, persist, showToast, onLock) {
 
 export function fillSettingsForm(state) {
   const u1 = state.users.find((x) => x.id === "u1");
-  const u2 = state.users.find((x) => x.id === "u2");
   const i1 = document.getElementById("settings-user1-name");
-  const i2 = document.getElementById("settings-user2-name");
   if (i1 && u1) i1.value = u1.name;
-  if (i2 && u2) i2.value = u2.name;
-
-  const namesTitle = document.getElementById("settings-names-title");
-  if (namesTitle) namesTitle.textContent = u2 ? "Names" : "Your name";
-  const u2Field = document.querySelector('label[for="settings-user2-name"]')?.closest(".field");
-  if (u2Field) u2Field.hidden = !u2;
 
   const syncLine = document.getElementById("sync-status-line");
   if (syncLine) {

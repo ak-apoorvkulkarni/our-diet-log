@@ -449,20 +449,16 @@ function renderMonthCalendarBody(meals, monthCursor) {
   return `<div class="insight-graph-body"><div class="heatmap-grid"><div class="heatmap-weekdays">${weekdayHeader}</div>${body}</div></div>`;
 }
 
-/** Renders into #dashboard-insights-mount on Overview (household + per-person scopes). */
-export function renderDashboardInsights(mount, state, weekCursor, showToast, dashboardScope) {
+/** Renders into #dashboard-insights-mount on Overview. */
+export function renderDashboardInsights(mount, state, weekCursor, showToast, _dashboardScope) {
   if (!mount) return;
 
   const u1 = state.users.find((x) => x.id === "u1");
-  const u2 = state.users.find((x) => x.id === "u2");
-  const name1 = u1?.name || "Person 1";
-  const name2 = u2?.name || "Person 2";
-  const isHouseholdScope = dashboardScope === "all";
-  const scopedUserId = dashboardScope === "u2" ? "u2" : "u1";
-  const scopedName = scopedUserId === "u2" ? name2 : name1;
-  const scopedMeals = isHouseholdScope
-    ? state.meals
-    : (state.meals || []).filter((m) => (m.userId === "u2" ? "u2" : "u1") === scopedUserId);
+  const name1 = u1?.name || "You";
+  const scopedMeals = state.meals || [];
+  const scopedUserId = "u1";
+  const scopedName = name1;
+  const isHouseholdScope = false;
 
   const weekDaily = weekDailyByPerson(scopedMeals, weekCursor);
   const healthCounts = isHouseholdScope

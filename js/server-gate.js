@@ -129,7 +129,7 @@
     }
     if (window.__DIET_APP_LOADING__ || window.__DIET_APP_LOADED__) return;
     window.__DIET_APP_LOADING__ = true;
-    import("/js/app.js?v=1.8.43")
+    import("/js/app.js?v=2.0.0")
       .then(function () {
         window.__DIET_APP_LOADED__ = true;
       })

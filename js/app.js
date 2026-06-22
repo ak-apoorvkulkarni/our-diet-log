@@ -9,21 +9,12 @@ import { getCurrentUser, logout, toSessionUser } from "./api-auth.js";
 import { withTimeout } from "./api-client.js";
 import { detectServerMode, isServerMode } from "./server-config.js";
 import {
-  acceptInvite,
   buildDefaultStateForUser,
-  createInvite,
   ensureUserProfile,
   hydrateMealImagesForState,
   loadUserState,
-  partnerUidFromHousehold,
-  removePartner,
   ensureHouseholdExists,
   householdIdForUser,
-  loadUserHouseholdIdFromProfile,
-  loadHouseholdMeta,
-  loadHouseholdState,
-  listHouseholdConnections,
-  listPartnerEntries,
   saveUserState,
   stripServerMealImagesForSave,
 } from "./api-store.js";
@@ -46,50 +37,15 @@ import { renderDashboardInsights } from "./ui/ui-insights.js";
 import { bindReminderSettings, startReminderScheduler, isRemindersEnabled } from "./reminders.js";
 let appState = ensureStateShape(null);
 let cloudMyState = ensureStateShape(null);
-let cloudPartnerState = null;
-let cloudPartnerUid = "";
-let cloudPartnerName = "";
 let sessionPassword = "";
 let weekCursor = weekCursorFromStorage();
 let cloudUser = null;
 let cloudHouseholdId = "";
 let cloudUserId = "u1";
 
-/** If the same meal id appears twice (e.g. merged household + duplicate save), keep the first occurrence. */
-function dedupeMealsById(meals) {
-  if (!Array.isArray(meals)) return [];
-  const seen = new Set();
-  const out = [];
-  for (const m of meals) {
-    if (!m || m.id == null) continue;
-    const id = String(m.id);
-    if (seen.has(id)) continue;
-    seen.add(id);
-    out.push(m);
-  }
-  return out;
-}
-
 function viewState() {
-  if (!isServerMode()) return appState;
-  const mine = cloudMyState || ensureStateShape(null);
-  if (!cloudPartnerState || !cloudPartnerUid) return mine;
-  const u1Name = mine.users?.find((u) => u.id === "u1")?.name || "You";
-  const u2Name = String(cloudPartnerName || "Partner");
-  const mineMeals = Array.isArray(mine.meals)
-    ? mine.meals.map((m) => ({ ...m, userId: "u1", ownerUid: cloudUser?.uid || "" }))
-    : [];
-  const partnerMeals = Array.isArray(cloudPartnerState.meals)
-    ? cloudPartnerState.meals.map((m) => ({ ...m, userId: "u2", ownerUid: cloudPartnerUid }))
-    : [];
-  return ensureStateShape({
-    ...mine,
-    users: [
-      { id: "u1", name: u1Name },
-      { id: "u2", name: u2Name },
-    ],
-    meals: dedupeMealsById([...mineMeals, ...partnerMeals]),
-  });
+  if (isServerMode()) return cloudMyState || ensureStateShape(null);
+  return appState;
 }
 
 function passwordRef() {
@@ -162,28 +118,10 @@ function setView(id) {
 
 function refreshUserSelects() {
   const s = viewState();
-  const opts = s.users
-    .map((u) => `<option value="${u.id}">${escapeAttr(u.name)}</option>`)
-    .join("");
-  ["meal-user", "edit-user", "filter-user"].forEach((id) => {
-    const sel = document.getElementById(id);
-    if (!sel) return;
-    const v = sel.value;
-    sel.innerHTML = id === "filter-user" ? `<option value="all">Both</option>${opts}` : opts;
-    if ([...sel.options].some((o) => o.value === v)) sel.value = v;
-  });
-}
-
-function escapeAttr(s) {
-  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-}
-
-function escapeHtml(s) {
-  return String(s ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+  const u1 = s.users?.find((u) => u.id === "u1");
+  const name = u1?.name || "You";
+  const i1 = document.getElementById("settings-user1-name");
+  if (i1 && !i1.value) i1.value = name;
 }
 
 function buildMealFilters() {
@@ -191,7 +129,7 @@ function buildMealFilters() {
   if (!search) return null;
   return {
     query: document.getElementById("meals-search")?.value || "",
-    userId: document.getElementById("filter-user")?.value || "all",
+    userId: "u1",
     category: document.getElementById("meals-filter-category")?.value || "all",
     from: document.getElementById("meals-date-from")?.value || "",
     to: document.getElementById("meals-date-to")?.value || "",
@@ -422,36 +360,6 @@ function initMainApp() {
     });
 
     shell.addEventListener("click", (e) => {
-      const inviteBtn = e.target.closest("[data-invite-partner]");
-      if (inviteBtn && shell.contains(inviteBtn) && isServerMode()) {
-        e.preventDefault();
-        if (!cloudUser || !cloudHouseholdId) return;
-        void (async () => {
-          try {
-            const toUsername = prompt("Partner username. Only that account can accept the invite.");
-            if (!toUsername) return;
-            const token = await createInvite(cloudHouseholdId, cloudUser.uid, toUsername);
-            const u = new URL(location.href);
-            u.searchParams.set("invite", token);
-            const link = u.toString();
-            const out = document.querySelector("[data-invite-link]");
-            if (out) {
-              out.style.display = "block";
-              out.textContent = link;
-            }
-            try {
-              await navigator.clipboard.writeText(link);
-              showToast("Invite link copied.");
-            } catch {
-              showToast("Invite link created.");
-            }
-          } catch (err) {
-            console.warn(err);
-            showToast(err?.message ? String(err.message) : "Could not create invite link.");
-          }
-        })();
-        return;
-      }
       const btn = e.target.closest("[data-nav]");
       if (!btn || !shell.contains(btn)) return;
       e.preventDefault();
@@ -459,7 +367,6 @@ function initMainApp() {
       closeMobileSidebarIfNeeded();
     });
 
-    document.getElementById("filter-user")?.addEventListener("change", renderMealsView);
     ["meals-search", "meals-filter-category", "meals-date-from", "meals-date-to"].forEach((id) => {
       document.getElementById(id)?.addEventListener("input", renderMealsView);
       document.getElementById(id)?.addEventListener("change", renderMealsView);
@@ -519,137 +426,10 @@ function showBootOrLoginError(msg) {
   }
 }
 
-async function mountPartnerInviteUi() {
-  const about = document.querySelector("#view-settings .card:last-of-type");
-  if (!about || document.getElementById("btn-invite-partner")) return;
-
-  let metaNow = null;
-  try {
-    metaNow = await loadHouseholdMeta(cloudHouseholdId);
-  } catch (e) {
-    console.warn(e);
-  }
-  const ownerUid = String(metaNow?.slots?.u1 || "");
-  const isOwner = Boolean(ownerUid && ownerUid === cloudUser?.uid);
-  const metaSafe = metaNow || {};
-  const connected = listHouseholdConnections(metaSafe, cloudUser?.uid || "");
-  const partnersForRemove = listPartnerEntries(metaSafe, ownerUid);
-  const maxPartners = 7;
-  const inviteDisabled = !isOwner || partnersForRemove.length >= maxPartners;
-
-  const partnersListHtml =
-    connected.length > 0
-      ? `<p class="field-hint" style="margin-bottom:0.35rem">Connected:</p><ul class="security-list partner-linked-list">${connected
-          .map((p) => `<li>${escapeHtml(p.name)}</li>`)
-          .join("")}</ul>`
-      : `<p class="field-hint" style="margin-bottom:0.75rem">No partner has joined yet.</p>`;
-
-  const removeBlock =
-    isOwner && partnersForRemove.length > 0
-      ? `<div class="field" style="margin-top:0.75rem;margin-bottom:0">
-          <label for="partner-remove-select">Remove a partner</label>
-          <div class="partner-remove-row">
-            <select id="partner-remove-select" aria-label="Partner to remove">
-              <option value="">Select…</option>
-              ${partnersForRemove
-                .map(
-                  (p) =>
-                    `<option value="${escapeAttr(p.uid)}">${escapeHtml(p.name)}</option>`
-                )
-                .join("")}
-            </select>
-            <button type="button" class="btn btn--danger" id="btn-remove-partner" disabled>Remove</button>
-          </div>
-          <p class="field-hint" style="margin-top:0.5rem;margin-bottom:0">Only the household owner can remove someone.</p>
-        </div>`
-      : !isOwner && connected.length > 0
-        ? `<p class="field-hint" style="margin-top:0.75rem;margin-bottom:0">Only the household owner can remove a partner.</p>`
-        : "";
-
-  const wrap = document.createElement("div");
-  wrap.className = "card";
-  wrap.style.maxWidth = "560px";
-  wrap.style.marginBottom = "1.5rem";
-  wrap.innerHTML = `
-          <h3 class="card__title" style="font-size: 1rem">Partner invite</h3>
-          <p class="field-hint" style="margin-bottom: 0.75rem">
-            Invite your partner by username. They register on this server, then open your invite link.
-          </p>
-          ${partnersListHtml}
-          <button type="button" class="btn btn--secondary" id="btn-invite-partner" ${
-            inviteDisabled ? "disabled" : ""
-          }>Create invite link</button>
-          ${removeBlock}
-          <p class="field-hint" id="invite-link-line" style="margin-top: 0.75rem; word-break: break-word"></p>
-        `;
-  about.parentElement.insertBefore(wrap, about);
-
-  document.getElementById("btn-invite-partner")?.addEventListener("click", async () => {
-    if (!cloudUser || !cloudHouseholdId) return;
-    try {
-      const toUsername = prompt(
-        "Partner username (they must register with this exact username before accepting)."
-      );
-      if (!toUsername) return;
-      const token = await createInvite(cloudHouseholdId, cloudUser.uid, toUsername);
-      const u = new URL(location.href);
-      u.searchParams.set("invite", token);
-      const line = document.getElementById("invite-link-line");
-      if (line) line.textContent = u.toString();
-      try {
-        await navigator.clipboard.writeText(u.toString());
-        showToast("Invite link copied.");
-      } catch {
-        showToast("Invite link created.");
-      }
-    } catch (e) {
-      console.warn(e);
-      showToast(e?.message ? String(e.message) : "Could not create invite link.");
-    }
-  });
-
-  const removeSel = document.getElementById("partner-remove-select");
-  const removeBtn = document.getElementById("btn-remove-partner");
-  removeSel?.addEventListener("change", () => {
-    if (removeBtn) removeBtn.disabled = !removeSel.value;
-  });
-  removeBtn?.addEventListener("click", async () => {
-    if (!cloudUser || !cloudHouseholdId) return;
-    const uid = removeSel?.value;
-    if (!uid) {
-      showToast("Select a partner to remove.");
-      return;
-    }
-    const label = removeSel?.selectedOptions?.[0]?.textContent?.trim() || "this person";
-    if (!confirm(`Remove ${label} from this household?`)) return;
-    try {
-      await removePartner(cloudHouseholdId, cloudUser.uid, uid);
-      showToast("Partner removed.");
-      window.location.reload();
-    } catch (e) {
-      console.warn(e);
-      showToast(e?.message ? String(e.message) : "Could not remove partner.");
-    }
-  });
-}
-
-async function syncServerDataInBackground(user, inviteToken) {
+async function syncServerDataInBackground(user) {
   const syncLine = document.getElementById("sync-status-line");
   try {
-    if (inviteToken) {
-      cloudHouseholdId = await withTimeout(
-        acceptInvite(inviteToken, user.uid, user.displayName, user.email || user.username),
-        15000,
-        "Invite acceptance timed out"
-      );
-      try {
-        const u = new URL(location.href);
-        u.searchParams.delete("invite");
-        history.replaceState({}, "", u.toString());
-      } catch (e) {}
-    } else {
-      cloudHouseholdId = householdIdForUser(user.uid);
-    }
+    cloudHouseholdId = householdIdForUser(user.uid);
 
     await withTimeout(ensureHouseholdExists(cloudHouseholdId, user.uid), 15000, "Household setup timed out");
     await withTimeout(
@@ -671,19 +451,6 @@ async function syncServerDataInBackground(user, inviteToken) {
     appState = cloudMyState;
 
     try {
-      const meta = await withTimeout(loadHouseholdMeta(cloudHouseholdId), 10000, "Household meta timed out");
-      cloudPartnerUid = (await partnerUidFromHousehold(cloudHouseholdId, user.uid)) || "";
-      cloudPartnerName = cloudPartnerUid
-        ? String(meta?.profiles?.[cloudPartnerUid]?.name || "Partner")
-        : "";
-      if (cloudPartnerUid) {
-        cloudPartnerState = await withTimeout(loadUserState(cloudPartnerUid), 10000, "Partner data timed out");
-      }
-    } catch (e) {
-      console.warn("Partner load skipped:", e);
-    }
-
-    try {
       await hydrateMealImagesForState(user.uid, cloudMyState);
     } catch (e) {
       console.warn("Image hydrate skipped:", e);
@@ -693,7 +460,6 @@ async function syncServerDataInBackground(user, inviteToken) {
       uid: user.uid,
       householdId: cloudHouseholdId,
       userId: cloudUserId,
-      hasPartner: Boolean(cloudPartnerUid),
     };
 
     if (syncLine) {
@@ -702,7 +468,6 @@ async function syncServerDataInBackground(user, inviteToken) {
     refreshUserSelects();
     fillSettingsForm(viewState());
     refreshMealsDashboardInsights();
-    void mountPartnerInviteUi();
   } catch (e) {
     console.warn("Background sync failed:", e);
     if (syncLine) {
@@ -720,8 +485,6 @@ async function boot() {
   const serverMode = await detectServerMode();
 
   if (serverMode) {
-    const params = new URLSearchParams(location.search || "");
-    const inviteToken = String(params.get("invite") || "").trim();
     let started = false;
 
     async function startAuthedSession(user) {
@@ -730,8 +493,6 @@ async function boot() {
       cloudUser = user;
       cloudHouseholdId = householdIdForUser(user.uid);
       cloudUserId = "u1";
-      cloudPartnerUid = "";
-      cloudPartnerState = null;
       cloudMyState = ensureStateShape(buildDefaultStateForUser(user.displayName));
       appState = cloudMyState;
 
@@ -751,7 +512,7 @@ async function boot() {
         return;
       }
 
-      void syncServerDataInBackground(user, inviteToken);
+      void syncServerDataInBackground(user);
     }
 
     const apiUser = window.__DIET_SERVER_API_USER__;
