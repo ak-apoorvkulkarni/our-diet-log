@@ -32,6 +32,16 @@ export function ensureStateShape(raw) {
   return state;
 }
 
+/** Update an existing state object in place (keeps form bindings valid). */
+export function mergeStateInPlace(target, raw) {
+  const s = ensureStateShape(raw);
+  target.version = s.version;
+  target.users = s.users;
+  target.meals = s.meals;
+  if (s.settings !== undefined) target.settings = s.settings;
+  return target;
+}
+
 export function newMealId() {
   try {
     if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {

@@ -214,10 +214,10 @@
   margin: 0;
 }
 
-/* Week trend lines — Mon–Sun; colors theme-only (two people), not data from any sample */
+/* Week trend lines — Mon–Sun; User 1 red, User 2 blue (fixed) */
 .insight-panel--daybars {
-  --daybar-a: #3d9a6e;
-  --daybar-b: #c45c3e;
+  --daybar-a: #e53935;
+  --daybar-b: #2563eb;
   /* Matches panel fill so plot area isn’t a second “card”; used for dot stroke halos */
   --trend-plot-bg: color-mix(in srgb, var(--bg-elevated) 82%, var(--bg-base));
   --trend-grid: color-mix(in srgb, var(--border) 50%, transparent);
@@ -449,7 +449,7 @@
 /* Matches viewBox width/height in ui-insights.js (svgW × H) so SVG isn’t letterboxed on the sides */
 .daybars-svg-frame {
   width: 100%;
-  aspect-ratio: 628 / 280;
+  aspect-ratio: 720 / 280;
   min-height: 0;
   line-height: 0;
 }
@@ -496,7 +496,7 @@
 
 .daybars-trend__path {
   fill: none;
-  stroke-width: 2.25;
+  stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
@@ -511,17 +511,32 @@
 }
 
 .daybars-trend__dot {
-  stroke: var(--trend-plot-bg);
-  stroke-width: 2;
+  fill: var(--bg-elevated);
+  stroke-width: 2.5;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
 
 .daybars-trend__dot--a {
-  fill: var(--daybar-a);
+  stroke: var(--daybar-a);
 }
 
 .daybars-trend__dot--b {
+  stroke: var(--daybar-b);
+}
+
+.daybars-trend__endlabel {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.daybars-trend__endlabel--a {
+  fill: var(--daybar-a);
+}
+
+.daybars-trend__endlabel--b {
   fill: var(--daybar-b);
 }
 

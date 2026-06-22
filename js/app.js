@@ -1,7 +1,7 @@
 /**
  * App shell: navigation, state, persistence, view wiring.
  */
-import { ensureStateShape } from "./models.js";
+import { ensureStateShape, mergeStateInPlace } from "./models.js";
 import { saveEncrypted } from "./storage.js";
 import { APP_VERSION, DEVELOPER_NAME, DEVELOPER_SITE } from "./version.js";
 import { initAuthScreen } from "./ui/ui-auth.js";
@@ -121,13 +121,9 @@ function userPickerLabel(u) {
 }
 
 function refreshUserSelects() {
-  const raw = viewState();
-  const s = ensureStateShape(raw);
-  if (isServerMode()) {
-    cloudMyState = s;
-    appState = s;
-  }
-  const users = (s.users || []).filter((u) => u.id === "u1" || u.id === "u2");
+  const target = viewState();
+  mergeStateInPlace(target, target);
+  const users = (target.users || []).filter((u) => u.id === "u1" || u.id === "u2");
   const opts = users.map((u) => `<option value="${escapeAttr(u.id)}">${escapeHtml(userPickerLabel(u))}</option>`).join("");
   ["meal-user", "edit-user", "filter-user"].forEach((id) => {
     const sel = document.getElementById(id);
@@ -192,7 +188,7 @@ function renderMealsView() {
           return;
         }
       }
-      openEditModal(cloudMyState, id, passwordRef, persist, showToast, () => refreshMealsDashboardInsights());
+      openEditModal(viewState(), id, passwordRef, persist, showToast, () => refreshMealsDashboardInsights());
     },
   });
 }
@@ -299,10 +295,9 @@ function initMainApp() {
       fv.innerHTML = `आहार Tracker · <code>v${APP_VERSION}</code> · <a href="${DEVELOPER_SITE}" target="_blank" rel="noopener noreferrer">${DEVELOPER_NAME}</a>${local ? " · running locally" : ""}`;
     }
     refreshUserSelects();
-    const stateRef = isServerMode() ? cloudMyState : appState;
     fillSettingsForm(viewState());
     initLogDefaults();
-    bindSettings(stateRef, passwordRef, persist, showToast, () => {
+    bindSettings(() => viewState(), passwordRef, persist, showToast, () => {
       if (isServerMode()) {
         signOutServer();
         return;
@@ -368,7 +363,7 @@ function initMainApp() {
       });
     })();
 
-    bindLogForm(stateRef, passwordRef, persist, showToast, () => {
+    bindLogForm(() => viewState(), passwordRef, persist, showToast, () => {
       setView("meals");
       renderMealsView();
       closeMobileSidebarIfNeeded();
@@ -467,13 +462,13 @@ async function syncServerDataInBackground(user) {
     );
 
     let myState = await withTimeout(loadUserState(user.uid), 15000, "Loading data timed out");
-    const usersBefore = JSON.stringify(myState?.users || []);
+    const usersBefore = JSON.stringify(cloudMyState.users || []);
     if (!myState) {
       myState = buildDefaultStateForUser(user.displayName);
       await withTimeout(saveUserState(user.uid, cloudHouseholdId, myState), 15000, "Saving data timed out");
     }
 
-    cloudMyState = ensureStateShape(myState);
+    mergeStateInPlace(cloudMyState, myState);
     appState = cloudMyState;
 
     if (JSON.stringify(cloudMyState.users) !== usersBefore) {
@@ -527,7 +522,7 @@ async function boot() {
       cloudUser = user;
       cloudHouseholdId = householdIdForUser(user.uid);
       cloudUserId = "u1";
-      cloudMyState = ensureStateShape(buildDefaultStateForUser(user.displayName));
+      mergeStateInPlace(cloudMyState, buildDefaultStateForUser(user.displayName));
       appState = cloudMyState;
 
       const syncLine = document.getElementById("sync-status-line");

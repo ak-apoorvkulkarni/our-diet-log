@@ -359,7 +359,7 @@ function userName(state, userId) {
   return u ? u.name : "Unknown";
 }
 
-export function bindLogForm(state, passwordRef, persist, showToast, onMealSaved) {
+export function bindLogForm(getState, passwordRef, persist, showToast, onMealSaved) {
   const form = document.getElementById("form-log-meal");
   const preview = document.getElementById("meal-photo-preview");
   const fileInput = document.getElementById("meal-photo");
@@ -503,6 +503,7 @@ export function bindLogForm(state, passwordRef, persist, showToast, onMealSaved)
     logSubmitInFlight = true;
     if (submitBtn) submitBtn.disabled = true;
     try {
+      const state = typeof getState === "function" ? getState() : getState;
       const dt = date && time ? new Date(`${date}T${time}`) : new Date();
       const added = addMeal(state, {
         userId,

@@ -25,7 +25,7 @@ async function savePeopleNames(state, passwordRef, persist, showToast) {
   }
 }
 
-function bindPeopleNameInput(id, state, passwordRef, persist, showToast) {
+function bindPeopleNameInput(id, getState, passwordRef, persist, showToast) {
   const el = document.getElementById(id);
   if (!el || el.dataset.bound === "1") return;
   el.dataset.bound = "1";
@@ -33,6 +33,7 @@ function bindPeopleNameInput(id, state, passwordRef, persist, showToast) {
   const scheduleSave = () => {
     if (_nameSaveTimer) clearTimeout(_nameSaveTimer);
     _nameSaveTimer = setTimeout(() => {
+      const state = typeof getState === "function" ? getState() : getState;
       void savePeopleNames(state, passwordRef, persist, showToast);
     }, 600);
   };
@@ -40,13 +41,14 @@ function bindPeopleNameInput(id, state, passwordRef, persist, showToast) {
   el.addEventListener("input", scheduleSave);
   el.addEventListener("change", () => {
     if (_nameSaveTimer) clearTimeout(_nameSaveTimer);
+    const state = typeof getState === "function" ? getState() : getState;
     void savePeopleNames(state, passwordRef, persist, showToast);
   });
 }
 
-export function bindSettings(state, passwordRef, persist, showToast, onLock) {
-  bindPeopleNameInput("settings-user1-name", state, passwordRef, persist, showToast);
-  bindPeopleNameInput("settings-user2-name", state, passwordRef, persist, showToast);
+export function bindSettings(getState, passwordRef, persist, showToast, onLock) {
+  bindPeopleNameInput("settings-user1-name", getState, passwordRef, persist, showToast);
+  bindPeopleNameInput("settings-user2-name", getState, passwordRef, persist, showToast);
 
   document.getElementById("btn-lock")?.addEventListener("click", () => {
     onLock();

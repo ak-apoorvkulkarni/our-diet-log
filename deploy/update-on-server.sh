@@ -10,6 +10,12 @@ BRANCH="${AHAR_GIT_BRANCH:-Ahhar_Server_V1.O}"
 echo "==> Pulling latest code (branch: $BRANCH)..."
 git pull origin "$BRANCH"
 
+echo "==> Ensuring SQLite database and tables exist..."
+if [ -d ".venv" ]; then
+  . .venv/bin/activate
+fi
+PYTHONPATH=src python3 -c "from server.db import init_db, db_status; init_db(); s=db_status(); print('DB:', s['path'], '| users:', s['users'], '| meals:', s['meals'])"
+
 echo "==> Restarting ahar-tracker..."
 bash deploy/restart-service.sh
 

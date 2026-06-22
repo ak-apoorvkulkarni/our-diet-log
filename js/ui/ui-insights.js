@@ -36,32 +36,86 @@ function yAxisTicks(yMax, count) {
   return ticks;
 }
 
-/**
- * Catmull–Rom → cubic Bézier segments (smooth line through all points).
- * @param {{ x: number; y: number }[]} pts
- */
-function pointsToSmoothPath(pts) {
-  const n = pts.length;
-  if (n < 2) return "";
-  const get = (i) => pts[Math.max(0, Math.min(n - 1, i))];
+/** Straight line segments through points (ECharts-style line chart). */
+function pointsToLinePath(pts) {
+  if (pts.length < 2) return "";
   let d = `M ${pts[0].x} ${pts[0].y}`;
-  for (let i = 0; i < n - 1; i++) {
-    const p0 = get(i - 1);
-    const p1 = get(i);
-    const p2 = get(i + 1);
-    const p3 = get(i + 2);
-    const cp1x = p1.x + (p2.x - p0.x) / 6;
-    const cp1y = p1.y + (p2.y - p0.y) / 6;
-    const cp2x = p2.x - (p3.x - p1.x) / 6;
-    const cp2y = p2.y - (p3.y - p1.y) / 6;
-    d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+  for (let i = 1; i < pts.length; i++) {
+    d += ` L ${pts[i].x} ${pts[i].y}`;
   }
   return d;
 }
 
+/** User 1 = red (a), User 2 = blue (b) — fixed across all charts. */
+function seriesClassForUser(userId) {
+  return userId === "u2" ? "b" : "a";
+}
+
+function renderTrendDots(series, seriesClass) {
+  return series
+    .map(
+      (p) =>
+        `<circle class="daybars-trend__dot daybars-trend__dot--${seriesClass}" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="5" aria-hidden="true" />`,
+    )
+    .join("");
+}
+
+/** End labels at the right of the plot (shift vertically if they overlap). */
+function renderEndLabels(items, labelX) {
+  const minGap = 15;
+  const sorted = items.map((it) => ({ ...it, y: it.y }));
+  sorted.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i].y - sorted[i - 1].y < minGap) {
+      sorted[i].y = sorted[i - 1].y + minGap;
+    }
+  }
+  return sorted
+    .map(
+      (it) =>
+        `<text class="daybars-trend__endlabel daybars-trend__endlabel--${it.cls}" x="${labelX.toFixed(2)}" y="${it.y.toFixed(2)}" dominant-baseline="middle">${escapeHtml(it.text)}</text>`,
+    )
+    .join("");
+}
+
+const TREND_CHART_H = 280;
+const TREND_PAD_T = 14;
+const TREND_PAD_B = 36;
+const TREND_PAD_L = 28;
+const TREND_PAD_R = 120;
+const TREND_PLOT_W = 572;
+
+function buildTrendPlot(dayLabels, yMax) {
+  const innerH = TREND_CHART_H - TREND_PAD_T - TREND_PAD_B;
+  const svgW = TREND_PAD_L + TREND_PLOT_W + TREND_PAD_R;
+  const n = dayLabels.length;
+  const xAt = (i) =>
+    n <= 1 ? TREND_PAD_L + TREND_PLOT_W / 2 : TREND_PAD_L + (i / (n - 1)) * TREND_PLOT_W;
+  const yAt = (v) => {
+    const clamped = Math.max(0, Math.min(yMax, v));
+    return TREND_PAD_T + innerH - (clamped / yMax) * innerH;
+  };
+  const yBottom = TREND_PAD_T + innerH;
+  const endLabelX = TREND_PAD_L + TREND_PLOT_W + 10;
+  return { innerH, svgW, n, xAt, yAt, yBottom, endLabelX };
+}
+
+function renderTrendGrid(yMax, mode) {
+  const ticks = yAxisTicks(yMax, mode === "meals" ? 4 : 5);
+  const innerH = TREND_CHART_H - TREND_PAD_T - TREND_PAD_B;
+  const gridLines = ticks
+    .map((t) => {
+      const y = TREND_PAD_T + innerH - (t / yMax) * innerH;
+      const isBase = t === 0;
+      return `<line class="daybars-trend__grid${isBase ? " daybars-trend__grid--base" : ""}" x1="${TREND_PAD_L}" y1="${y}" x2="${TREND_PAD_L + TREND_PLOT_W}" y2="${y}" />`;
+    })
+    .join("");
+  return { ticks, gridLines, yBottom };
+}
+
 /**
  * Dual trend lines for the selected week (Mon–Sun): calories or meal counts per person.
- * Smooth curves + visible points at each day.
+ * ECharts-style: straight segments, dot per day, end labels on the right.
  * @param {"kcal" | "meals"} mode
  */
 function renderPairedWeekTrendLines(weekData, mode, name1, name2) {
@@ -77,51 +131,27 @@ function renderPairedWeekTrendLines(weekData, mode, name1, name2) {
     return mode === "kcal" ? r.toLocaleString() : String(r);
   };
 
-  /* Plot: Y-axis at x=padL; symmetric horizontal padding for x-labels (text-anchor middle) at Mon & Sun. */
-  const H = 280;
-  const padT = 14;
-  const padB = 36;
-  const padL = 28;
-  const padR = 28;
-  const plotW = 572;
-  /** @see `.daybars-svg-frame { aspect-ratio }` in insights.css (svgW × H) */
-  const svgW = padL + plotW + padR;
-  const innerH = H - padT - padB;
-  const n = dayLabels.length;
-  const xAt = (i) => (n <= 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
-  const yAt = (v) => {
-    const clamped = Math.max(0, Math.min(yMax, v));
-    return padT + innerH - (clamped / yMax) * innerH;
-  };
+  const { svgW, xAt, yAt, yBottom, endLabelX } = buildTrendPlot(dayLabels, yMax);
 
-  const series1 = u1Arr.map((v, i) => ({ x: xAt(i), y: yAt(v) }));
-  const series2 = u2Arr.map((v, i) => ({ x: xAt(i), y: yAt(v) }));
-  const path1d = pointsToSmoothPath(series1);
-  const path2d = pointsToSmoothPath(series2);
-  const dots1 = series1
-    .map(
-      (p) =>
-        `<circle class="daybars-trend__dot daybars-trend__dot--a" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="4" aria-hidden="true" />`,
-    )
-    .join("");
-  const dots2 = series2
-    .map(
-      (p) =>
-        `<circle class="daybars-trend__dot daybars-trend__dot--b" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="4" aria-hidden="true" />`,
-    )
-    .join("");
+  const series1 = u1Arr.map((v, i) => ({ x: xAt(i), y: yAt(v), v }));
+  const series2 = u2Arr.map((v, i) => ({ x: xAt(i), y: yAt(v), v }));
+  const path1d = pointsToLinePath(series1);
+  const path2d = pointsToLinePath(series2);
+  const dots1 = renderTrendDots(series1, "a");
+  const dots2 = renderTrendDots(series2, "b");
 
-  const ticks = yAxisTicks(yMax, mode === "meals" ? 4 : 5);
-  const yBottom = padT + innerH;
-  const gridLines = ticks
-    .map((t) => {
-      const y = padT + innerH - (t / yMax) * innerH;
-      const isBase = t === 0;
-      return `<line class="daybars-trend__grid${isBase ? " daybars-trend__grid--base" : ""}" x1="${padL}" y1="${y}" x2="${padL + plotW}" y2="${y}" />`;
-    })
-    .join("");
+  const last1 = series1[series1.length - 1];
+  const last2 = series2[series2.length - 1];
+  const endLabels = renderEndLabels(
+    [
+      { y: last1.y, text: `${name1}: ${yFmt(last1.v)}`, cls: "a" },
+      { y: last2.y, text: `${name2}: ${yFmt(last2.v)}`, cls: "b" },
+    ],
+    endLabelX,
+  );
 
-  /* Ascending values in DOM; `.daybars-yaxis-labels` uses column-reverse so 0 is bottom, max top */
+  const { ticks, gridLines } = renderTrendGrid(yMax, mode);
+
   const yLabelsHtml = ticks
     .map((t) => `<span class="daybars-yaxis-labels__tick">${escapeHtml(yFmt(t))}</span>`)
     .join("");
@@ -129,7 +159,7 @@ function renderPairedWeekTrendLines(weekData, mode, name1, name2) {
   const xLabels = dayLabels
     .map((lab, i) => {
       const x = xAt(i);
-      return `<text class="daybars-trend__xlabel" x="${x}" y="${H - 8}" text-anchor="middle">${escapeHtml(lab)}</text>`;
+      return `<text class="daybars-trend__xlabel" x="${x}" y="${TREND_CHART_H - 8}" text-anchor="middle">${escapeHtml(lab)}</text>`;
     })
     .join("");
 
@@ -139,12 +169,13 @@ function renderPairedWeekTrendLines(weekData, mode, name1, name2) {
       : `Meals per day for ${name1} and ${name2}, Mon–Sun`;
 
   const svg = `
-    <svg class="daybars-trend-svg" viewBox="0 0 ${svgW} ${H}" width="100%" height="100%" preserveAspectRatio="xMinYMid meet" role="img" aria-label="${escapeHtml(aria)}">
-      <line class="daybars-trend__yaxis" x1="${padL}" y1="${padT}" x2="${padL}" y2="${yBottom}" />
+    <svg class="daybars-trend-svg" viewBox="0 0 ${svgW} ${TREND_CHART_H}" width="100%" height="100%" preserveAspectRatio="xMinYMid meet" role="img" aria-label="${escapeHtml(aria)}">
+      <line class="daybars-trend__yaxis" x1="${TREND_PAD_L}" y1="${TREND_PAD_T}" x2="${TREND_PAD_L}" y2="${yBottom}" />
       ${gridLines}
       ${path1d ? `<path class="daybars-trend__path daybars-trend__path--a" d="${path1d}" />` : ""}
       ${path2d ? `<path class="daybars-trend__path daybars-trend__path--b" d="${path2d}" />` : ""}
       ${dots1}${dots2}
+      ${endLabels}
       ${xLabels}
     </svg>`;
 
@@ -158,7 +189,7 @@ function renderPairedWeekTrendLines(weekData, mode, name1, name2) {
         </div>
       </div>
       <div class="insight-graph-body">
-        <div class="daybars-chart daybars-chart--${mode === "kcal" ? "kcal" : "meals"}" style="--trend-pad-t: ${padT}px; --trend-pad-b: ${padB}px;">
+        <div class="daybars-chart daybars-chart--${mode === "kcal" ? "kcal" : "meals"}" style="--trend-pad-t: ${TREND_PAD_T}px; --trend-pad-b: ${TREND_PAD_B}px;">
           <div class="daybars-chart-inner">
             <div class="daybars-yaxis-labels" aria-hidden="true">${yLabelsHtml}</div>
             <div class="daybars-plot-surface">
@@ -180,6 +211,7 @@ function renderSingleWeekTrendLine(weekData, mode, userId, name) {
   const userCal = userId === "u2" ? u2Cal : u1Cal;
   const userMeals = userId === "u2" ? u2N : u1N;
   const arr = mode === "kcal" ? userCal : userMeals;
+  const seriesClass = seriesClassForUser(userId);
   const dataMax = Math.max(0, ...arr);
   const yMax = niceYMax(dataMax <= 0 ? (mode === "meals" ? 3 : 200) : dataMax);
 
@@ -189,39 +221,19 @@ function renderSingleWeekTrendLine(weekData, mode, userId, name) {
     return mode === "kcal" ? r.toLocaleString() : String(r);
   };
 
-  const H = 280;
-  const padT = 14;
-  const padB = 36;
-  const padL = 28;
-  const padR = 28;
-  const plotW = 572;
-  const svgW = padL + plotW + padR;
-  const innerH = H - padT - padB;
-  const n = dayLabels.length;
-  const xAt = (i) => (n <= 1 ? padL + plotW / 2 : padL + (i / (n - 1)) * plotW);
-  const yAt = (v) => {
-    const clamped = Math.max(0, Math.min(yMax, v));
-    return padT + innerH - (clamped / yMax) * innerH;
-  };
+  const { svgW, xAt, yAt, yBottom, endLabelX } = buildTrendPlot(dayLabels, yMax);
 
-  const series = arr.map((v, i) => ({ x: xAt(i), y: yAt(v) }));
-  const pathD = pointsToSmoothPath(series);
-  const dots = series
-    .map(
-      (p) =>
-        `<circle class="daybars-trend__dot daybars-trend__dot--a" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="4" aria-hidden="true" />`
-    )
-    .join("");
+  const series = arr.map((v, i) => ({ x: xAt(i), y: yAt(v), v }));
+  const pathD = pointsToLinePath(series);
+  const dots = renderTrendDots(series, seriesClass);
 
-  const ticks = yAxisTicks(yMax, mode === "meals" ? 4 : 5);
-  const yBottom = padT + innerH;
-  const gridLines = ticks
-    .map((t) => {
-      const y = padT + innerH - (t / yMax) * innerH;
-      const isBase = t === 0;
-      return `<line class="daybars-trend__grid${isBase ? " daybars-trend__grid--base" : ""}" x1="${padL}" y1="${y}" x2="${padL + plotW}" y2="${y}" />`;
-    })
-    .join("");
+  const last = series[series.length - 1];
+  const endLabels = renderEndLabels(
+    [{ y: last.y, text: `${name}: ${yFmt(last.v)}`, cls: seriesClass }],
+    endLabelX,
+  );
+
+  const { ticks, gridLines } = renderTrendGrid(yMax, mode);
 
   const yLabelsHtml = ticks
     .map((t) => `<span class="daybars-yaxis-labels__tick">${escapeHtml(yFmt(t))}</span>`)
@@ -230,7 +242,7 @@ function renderSingleWeekTrendLine(weekData, mode, userId, name) {
   const xLabels = dayLabels
     .map((lab, i) => {
       const x = xAt(i);
-      return `<text class="daybars-trend__xlabel" x="${x}" y="${H - 8}" text-anchor="middle">${escapeHtml(lab)}</text>`;
+      return `<text class="daybars-trend__xlabel" x="${x}" y="${TREND_CHART_H - 8}" text-anchor="middle">${escapeHtml(lab)}</text>`;
     })
     .join("");
 
@@ -240,11 +252,12 @@ function renderSingleWeekTrendLine(weekData, mode, userId, name) {
       : `Meals per day for ${name}, Mon–Sun`;
 
   const svg = `
-    <svg class="daybars-trend-svg" viewBox="0 0 ${svgW} ${H}" width="100%" height="100%" preserveAspectRatio="xMinYMid meet" role="img" aria-label="${escapeHtml(aria)}">
-      <line class="daybars-trend__yaxis" x1="${padL}" y1="${padT}" x2="${padL}" y2="${yBottom}" />
+    <svg class="daybars-trend-svg" viewBox="0 0 ${svgW} ${TREND_CHART_H}" width="100%" height="100%" preserveAspectRatio="xMinYMid meet" role="img" aria-label="${escapeHtml(aria)}">
+      <line class="daybars-trend__yaxis" x1="${TREND_PAD_L}" y1="${TREND_PAD_T}" x2="${TREND_PAD_L}" y2="${yBottom}" />
       ${gridLines}
-      ${pathD ? `<path class="daybars-trend__path daybars-trend__path--a" d="${pathD}" />` : ""}
+      ${pathD ? `<path class="daybars-trend__path daybars-trend__path--${seriesClass}" d="${pathD}" />` : ""}
       ${dots}
+      ${endLabels}
       ${xLabels}
     </svg>`;
 
@@ -253,11 +266,11 @@ function renderSingleWeekTrendLine(weekData, mode, userId, name) {
       <div class="insight-graph-header">
         <h4 class="daybars-card__title">${title}</h4>
         <div class="daybars-legend">
-          <span><span class="daybars-legend__swatch daybars-legend__swatch--a"></span>${escapeHtml(name)}</span>
+          <span><span class="daybars-legend__swatch daybars-legend__swatch--${seriesClass}"></span>${escapeHtml(name)}</span>
         </div>
       </div>
       <div class="insight-graph-body">
-        <div class="daybars-chart daybars-chart--${mode === "kcal" ? "kcal" : "meals"}" style="--trend-pad-t: ${padT}px; --trend-pad-b: ${padB}px;">
+        <div class="daybars-chart daybars-chart--${mode === "kcal" ? "kcal" : "meals"}" style="--trend-pad-t: ${TREND_PAD_T}px; --trend-pad-b: ${TREND_PAD_B}px;">
           <div class="daybars-chart-inner">
             <div class="daybars-yaxis-labels" aria-hidden="true">${yLabelsHtml}</div>
             <div class="daybars-plot-surface">
