@@ -256,6 +256,46 @@
   color: var(--text-secondary);
 }
 
+.daybars-legend--values {
+  gap: var(--space-sm) var(--space-md);
+}
+
+.daybars-legend__item {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.daybars-legend__name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.daybars-legend__val {
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.insight-graph-header--trend {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+@media (min-width: 640px) {
+  .insight-graph-header--trend {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+}
+
 .daybars-legend span {
   display: inline-flex;
   align-items: center;
@@ -446,12 +486,61 @@
   overflow: visible;
 }
 
-/* Matches viewBox width/height in ui-insights.js (svgW × H) so SVG isn’t letterboxed on the sides */
+/* Plot frame — aspect-ratio set inline from ui-insights.js (svgW × H) */
 .daybars-svg-frame {
   width: 100%;
-  aspect-ratio: 720 / 280;
-  min-height: 0;
+  min-height: 200px;
   line-height: 0;
+}
+
+@media (max-width: 639px) {
+  .dashboard-insights-root .insight-panel--daybars {
+    padding: var(--space-md);
+    border-radius: 20px;
+  }
+
+  .dashboard-insights-root .insight-panel--daybars .daybars-chart {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .daybars-card__title {
+    font-size: 1.05rem;
+  }
+
+  .daybars-chart-inner {
+    min-height: 220px;
+  }
+
+  .daybars-svg-frame {
+    min-height: 220px;
+  }
+
+  .daybars-yaxis-labels {
+    font-size: 12px;
+    min-width: 2rem;
+  }
+
+  .daybars-chart--kcal .daybars-yaxis-labels {
+    min-width: 2.25rem;
+  }
+
+  .daybars-trend__xlabel {
+    font-size: 12px;
+  }
+
+  .daybars-legend--values {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (min-width: 640px) {
+  .daybars-svg-frame {
+    min-height: 240px;
+  }
 }
 
 .daybars-svg-frame .daybars-trend-svg {
@@ -523,21 +612,6 @@
 
 .daybars-trend__dot--b {
   stroke: var(--daybar-b);
-}
-
-.daybars-trend__endlabel {
-  font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.daybars-trend__endlabel--a {
-  fill: var(--daybar-a);
-}
-
-.daybars-trend__endlabel--b {
-  fill: var(--daybar-b);
 }
 
 .insights-empty {

@@ -403,6 +403,15 @@ function initMainApp() {
 
     window.addEventListener("diet-insights-rerender", () => renderDashboardView());
 
+    let resizeRedrawTimer = null;
+    window.addEventListener("resize", () => {
+      if (resizeRedrawTimer) clearTimeout(resizeRedrawTimer);
+      resizeRedrawTimer = setTimeout(() => {
+        const dash = document.getElementById("view-dashboard");
+        if (dash?.classList.contains("is-active")) renderDashboardView();
+      }, 200);
+    });
+
     bindWeekNav(
       () => weekCursor,
       (d) => {
