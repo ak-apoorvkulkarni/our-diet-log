@@ -5,21 +5,48 @@ import { isServerMode } from "../server-config.js";
 import { deleteAllMealImagesFirestore } from "../api-store.js";
 import { apiFetch } from "../api-client.js";
 
+let _nameSaveTimer = null;
+
+function readPeopleNamesFromInputs(state) {
+  const u1 = state.users.find((x) => x.id === "u1");
+  const u2 = state.users.find((x) => x.id === "u2");
+  const i1 = document.getElementById("settings-user1-name");
+  const i2 = document.getElementById("settings-user2-name");
+  if (u1 && i1) u1.name = i1.value.trim() || "User 1";
+  if (u2 && i2) u2.name = i2.value.trim() || "User 2";
+}
+
+async function savePeopleNames(state, passwordRef, persist, showToast) {
+  readPeopleNamesFromInputs(state);
+  const ok = await persist(passwordRef());
+  if (ok) {
+    showToast("Names saved.");
+    window.dispatchEvent(new CustomEvent("diet-users-updated"));
+  }
+}
+
+function bindPeopleNameInput(id, state, passwordRef, persist, showToast) {
+  const el = document.getElementById(id);
+  if (!el || el.dataset.bound === "1") return;
+  el.dataset.bound = "1";
+
+  const scheduleSave = () => {
+    if (_nameSaveTimer) clearTimeout(_nameSaveTimer);
+    _nameSaveTimer = setTimeout(() => {
+      void savePeopleNames(state, passwordRef, persist, showToast);
+    }, 600);
+  };
+
+  el.addEventListener("input", scheduleSave);
+  el.addEventListener("change", () => {
+    if (_nameSaveTimer) clearTimeout(_nameSaveTimer);
+    void savePeopleNames(state, passwordRef, persist, showToast);
+  });
+}
+
 export function bindSettings(state, passwordRef, persist, showToast, onLock) {
-  document.getElementById("settings-user1-name")?.addEventListener("change", async (e) => {
-    const u = state.users.find((x) => x.id === "u1");
-    if (u) u.name = e.target.value.trim() || "User 1";
-    await persist(passwordRef());
-    showToast("Names saved.");
-    window.dispatchEvent(new CustomEvent("diet-users-updated"));
-  });
-  document.getElementById("settings-user2-name")?.addEventListener("change", async (e) => {
-    const u = state.users.find((x) => x.id === "u2");
-    if (u) u.name = e.target.value.trim() || "User 2";
-    await persist(passwordRef());
-    showToast("Names saved.");
-    window.dispatchEvent(new CustomEvent("diet-users-updated"));
-  });
+  bindPeopleNameInput("settings-user1-name", state, passwordRef, persist, showToast);
+  bindPeopleNameInput("settings-user2-name", state, passwordRef, persist, showToast);
 
   document.getElementById("btn-lock")?.addEventListener("click", () => {
     onLock();

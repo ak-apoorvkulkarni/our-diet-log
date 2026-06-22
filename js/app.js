@@ -64,7 +64,6 @@ async function persist() {
         (async () => {
           await ensureUserProfile(cloudUser.uid, {
             householdId: cloudHouseholdId,
-            name: String(cloudUser.displayName || ""),
           });
           await saveUserState(
             cloudUser.uid,
@@ -116,10 +115,9 @@ function setView(id) {
 }
 
 function userPickerLabel(u) {
-  const slot = u.id === "u2" ? "User 2" : "User 1";
   const name = String(u.name || "").trim();
-  if (!name || name === slot || name === "User 1" || name === "User 2") return slot;
-  return `${slot} — ${name}`;
+  if (name) return name;
+  return u.id === "u2" ? "User 2" : "User 1";
 }
 
 function refreshUserSelects() {
@@ -463,7 +461,6 @@ async function syncServerDataInBackground(user) {
     await withTimeout(
       ensureUserProfile(user.uid, {
         householdId: cloudHouseholdId,
-        name: String(user.displayName || ""),
       }),
       15000,
       "Profile setup timed out"

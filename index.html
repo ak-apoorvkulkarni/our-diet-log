@@ -232,14 +232,14 @@
           <div class="card" style="max-width: 560px; margin-bottom: 1.5rem">
             <h3 class="card__title" id="settings-names-title" style="font-size: 1rem">People</h3>
             <div class="field">
-              <label for="settings-user1-name">User 1</label>
-              <input id="settings-user1-name" type="text" autocomplete="nickname" />
+              <label for="settings-user1-name">User 1 name</label>
+              <input id="settings-user1-name" type="text" autocomplete="nickname" placeholder="Your name" />
             </div>
             <div class="field">
-              <label for="settings-user2-name">User 2 (partner)</label>
-              <input id="settings-user2-name" type="text" autocomplete="nickname" />
+              <label for="settings-user2-name">User 2 name</label>
+              <input id="settings-user2-name" type="text" autocomplete="nickname" placeholder="Partner name" />
             </div>
-            <p class="field-hint">Names appear on meal cards, filters, and the dashboard.</p>
+            <p class="field-hint">Edit either name anytime — saves automatically. Names show in Log meal, filters, and the dashboard.</p>
           </div>
           <div class="card" style="max-width: 560px; margin-bottom: 1.5rem">
             <h3 class="card__title" style="font-size: 1rem">About</h3>
@@ -711,10 +711,10 @@
         };
       })();
     </script>
-    <script src="js/server-gate.js?v=2.1.1"></script>
+    <script src="js/server-gate.js?v=2.1.2"></script>
     <script>
       (function () {
-        var APP_MODULE = "/js/app.js?v=2.1.1";
+        var APP_MODULE = "/js/app.js?v=2.1.2";
 
         function reportAppLoadError(err) {
           console.error(err);

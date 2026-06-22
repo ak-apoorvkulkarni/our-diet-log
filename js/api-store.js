@@ -147,7 +147,7 @@ export function buildDefaultStateForUser(displayName) {
   const name = String(displayName || "").trim();
   if (name) {
     const u1 = s.users.find((u) => u.id === "u1");
-    if (u1) u1.name = name;
+    if (u1 && (u1.name === "User 1" || !u1.name)) u1.name = name;
   }
   return s;
 }
