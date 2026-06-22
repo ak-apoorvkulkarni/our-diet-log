@@ -115,17 +115,29 @@ function setView(id) {
   if (nav) nav.setAttribute("aria-current", "true");
 }
 
+function userPickerLabel(u) {
+  const slot = u.id === "u2" ? "User 2" : "User 1";
+  const name = String(u.name || "").trim();
+  if (!name || name === slot || name === "User 1" || name === "User 2") return slot;
+  return `${slot} — ${name}`;
+}
+
 function refreshUserSelects() {
-  const s = viewState();
-  const opts = (s.users || [])
-    .map((u) => `<option value="${escapeAttr(u.id)}">${escapeHtml(u.name)}</option>`)
-    .join("");
+  const raw = viewState();
+  const s = ensureStateShape(raw);
+  if (isServerMode()) {
+    cloudMyState = s;
+    appState = s;
+  }
+  const users = (s.users || []).filter((u) => u.id === "u1" || u.id === "u2");
+  const opts = users.map((u) => `<option value="${escapeAttr(u.id)}">${escapeHtml(userPickerLabel(u))}</option>`).join("");
   ["meal-user", "edit-user", "filter-user"].forEach((id) => {
     const sel = document.getElementById(id);
     if (!sel) return;
     const v = sel.value;
     sel.innerHTML = id === "filter-user" ? `<option value="all">Both</option>${opts}` : opts;
     if ([...sel.options].some((o) => o.value === v)) sel.value = v;
+    else if (id !== "filter-user" && sel.options.length) sel.value = "u1";
   });
 }
 
@@ -458,6 +470,7 @@ async function syncServerDataInBackground(user) {
     );
 
     let myState = await withTimeout(loadUserState(user.uid), 15000, "Loading data timed out");
+    const usersBefore = JSON.stringify(myState?.users || []);
     if (!myState) {
       myState = buildDefaultStateForUser(user.displayName);
       await withTimeout(saveUserState(user.uid, cloudHouseholdId, myState), 15000, "Saving data timed out");
@@ -465,6 +478,14 @@ async function syncServerDataInBackground(user) {
 
     cloudMyState = ensureStateShape(myState);
     appState = cloudMyState;
+
+    if (JSON.stringify(cloudMyState.users) !== usersBefore) {
+      try {
+        await withTimeout(saveUserState(user.uid, cloudHouseholdId, cloudMyState), 15000, "Saving data timed out");
+      } catch (e) {
+        console.warn("User list migration save skipped:", e);
+      }
+    }
 
     try {
       await hydrateMealImagesForState(user.uid, cloudMyState);

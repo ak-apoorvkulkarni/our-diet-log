@@ -143,7 +143,7 @@ export async function saveUserState(uid, householdId, state) {
 }
 
 export function buildDefaultStateForUser(displayName) {
-  const s = createEmptyState();
+  const s = ensureStateShape(createEmptyState());
   const name = String(displayName || "").trim();
   if (name) {
     const u1 = s.users.find((u) => u.id === "u1");
