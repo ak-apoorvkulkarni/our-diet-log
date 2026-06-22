@@ -55,12 +55,27 @@
     }
     var tok = getToken();
     if (tok) headers.Authorization = "Bearer " + tok;
+    var timeoutMs = opts.timeoutMs || 20000;
+    var controller = new AbortController();
+    var timer = setTimeout(function () {
+      controller.abort();
+    }, timeoutMs);
     return fetch(path, {
       method: opts.method || "GET",
       credentials: "same-origin",
       headers: headers,
       body: opts.body,
-    });
+      signal: controller.signal,
+    })
+      .catch(function (err) {
+        if (err && err.name === "AbortError") {
+          throw new Error("Request timed out: " + path);
+        }
+        throw err;
+      })
+      .finally(function () {
+        clearTimeout(timer);
+      });
   }
 
   function hideEl(id) {
@@ -103,7 +118,21 @@
   function startApp() {
     if (typeof window.__DIET_START_APP__ === "function") {
       window.__DIET_START_APP__();
+      return;
     }
+    if (window.__DIET_APP_LOADING__ || window.__DIET_APP_LOADED__) return;
+    window.__DIET_APP_LOADING__ = true;
+    import("/js/app.js?v=1.8.42")
+      .then(function () {
+        window.__DIET_APP_LOADED__ = true;
+      })
+      .catch(function (err) {
+        console.error(err);
+        window.__DIET_APP_LOADING__ = false;
+        setBootError(
+          "App failed to load: " + (err && err.message ? err.message : String(err))
+        );
+      });
   }
 
   function goApp(user) {
@@ -204,13 +233,26 @@
     window.__DIET_SERVER_MODE__ = true;
     document.documentElement.classList.remove("diet-local-mode");
     showBootScreen();
+    var bootTimer = setTimeout(function () {
+      if (window.__DIET_APP_READY__) return;
+      setBootError(
+        "App is taking too long to start. Hard-refresh (Ctrl+Shift+R) or sign out and sign in again."
+      );
+    }, 20000);
     return checkExistingSession().then(function (user) {
       if (!user) {
+        clearTimeout(bootTimer);
         location.replace("/");
         return;
       }
       window.__DIET_SERVER_API_USER__ = user;
       startApp();
+      var readyPoll = setInterval(function () {
+        if (window.__DIET_APP_READY__) {
+          clearInterval(readyPoll);
+          clearTimeout(bootTimer);
+        }
+      }, 200);
     });
   }
 

@@ -3,6 +3,7 @@
  */
 
 const SESSION_KEY = "ahar_session_token";
+const DEFAULT_TIMEOUT_MS = 20000;
 
 function canUseStorage() {
   try {
@@ -37,13 +38,38 @@ export function storageAvailable() {
   return canUseStorage();
 }
 
+export function withTimeout(promise, ms, label) {
+  const timeout = ms || DEFAULT_TIMEOUT_MS;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(
+        () => reject(new Error(label || `Request timed out after ${Math.round(timeout / 1000)}s`)),
+        timeout
+      );
+    }),
+  ]);
+}
+
 export function apiFetch(url, options = {}) {
   const headers = new Headers(options.headers || {});
   const token = getSessionToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const { timeoutMs: _drop, ...fetchOpts } = options;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   return fetch(url, {
-    ...options,
+    ...fetchOpts,
     headers,
     credentials: "same-origin",
-  });
+    signal: controller.signal,
+  })
+    .catch((err) => {
+      if (err && err.name === "AbortError") {
+        throw new Error(`Request timed out: ${url}`);
+      }
+      throw err;
+    })
+    .finally(() => clearTimeout(timer));
 }

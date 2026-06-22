@@ -738,38 +738,44 @@
         };
       })();
     </script>
-    <script src="js/server-gate.js?v=1.8.40"></script>
+    <script src="js/server-gate.js?v=1.8.42"></script>
     <script>
-      window.__DIET_START_APP__ = function () {
-        if (window.__DIET_APP_LOADING__ || window.__DIET_APP_LOADED__) return;
-        window.__DIET_APP_LOADING__ = true;
-        import(new URL("./js/app.js?v=1.8.40", import.meta.url).href)
-          .then(function () {
-            window.__DIET_APP_LOADED__ = true;
-          })
-          .catch(function (err) {
-            console.error(err);
-            window.__DIET_APP_LOADING__ = false;
-            if (window.__DIET_SERVER_MODE__) {
+      (function () {
+        var APP_MODULE = "/js/app.js?v=1.8.42";
+
+        function reportAppLoadError(err) {
+          console.error(err);
+          window.__DIET_APP_LOADING__ = false;
+          var msg =
+            "App failed to load: " + (err && err.message ? err.message : String(err));
+          if (window.__DIET_SERVER_MODE__) {
+            if (typeof window.__DIET_SET_BOOT_ERROR__ === "function") {
+              window.__DIET_SET_BOOT_ERROR__(msg);
+            } else {
               var errEl = document.getElementById("server-login-error");
-              if (errEl) {
-                errEl.textContent =
-                  "App failed to load: " + (err && err.message ? err.message : String(err));
-              }
+              if (errEl) errEl.textContent = msg;
               var screen = document.getElementById("server-login-screen");
               if (screen) {
                 screen.hidden = false;
                 screen.removeAttribute("aria-hidden");
               }
             }
-            if (typeof window.__dietReportLoadFailure === "function") {
-              window.__dietReportLoadFailure(
-                "Could not load app code: " +
-                  (err && err.message ? err.message : String(err))
-              );
-            }
-          });
-      };
+          }
+          if (typeof window.__dietReportLoadFailure === "function") {
+            window.__dietReportLoadFailure("Could not load app code: " + msg);
+          }
+        }
+
+        window.__DIET_START_APP__ = function () {
+          if (window.__DIET_APP_LOADING__ || window.__DIET_APP_LOADED__) return;
+          window.__DIET_APP_LOADING__ = true;
+          import(APP_MODULE)
+            .then(function () {
+              window.__DIET_APP_LOADED__ = true;
+            })
+            .catch(reportAppLoadError);
+        };
+      })();
       if (!window.__DIET_SERVER_MODE__ && window.__DIET_SERVER_MODE__ !== false) {
         window.addEventListener("DOMContentLoaded", function () {
           setTimeout(function () {

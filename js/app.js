@@ -6,6 +6,7 @@ import { saveEncrypted } from "./storage.js";
 import { APP_VERSION, DEVELOPER_NAME, DEVELOPER_SITE } from "./version.js";
 import { initAuthScreen } from "./ui/ui-auth.js";
 import { getCurrentUser, logout, toSessionUser } from "./api-auth.js";
+import { withTimeout } from "./api-client.js";
 import { detectServerMode, isServerMode } from "./server-config.js";
 import {
   acceptInvite,
@@ -260,8 +261,18 @@ function hideLoginScreen() {
 }
 
 function showServerLoginError(msg) {
+  const text = msg || "";
   const errEl = document.getElementById("server-login-error");
-  if (errEl) errEl.textContent = msg || "";
+  if (errEl) errEl.textContent = text;
+  if (location.pathname === "/app" || location.pathname.endsWith("/app")) {
+    if (typeof window.__DIET_SET_BOOT_ERROR__ === "function") {
+      window.__DIET_SET_BOOT_ERROR__(text);
+    } else {
+      const bootErr = document.getElementById("app-boot-error");
+      if (bootErr) bootErr.textContent = text;
+    }
+    return;
+  }
   const screen = document.getElementById("server-login-screen");
   if (screen) {
     screen.hidden = false;
@@ -492,6 +503,207 @@ function initMainApp() {
   }
 }
 
+function showBootOrLoginError(msg) {
+  if (typeof window.__DIET_SET_BOOT_ERROR__ === "function") {
+    window.__DIET_SET_BOOT_ERROR__(msg);
+  } else {
+    showServerLoginError(msg);
+  }
+}
+
+async function mountPartnerInviteUi() {
+  const about = document.querySelector("#view-settings .card:last-of-type");
+  if (!about || document.getElementById("btn-invite-partner")) return;
+
+  let metaNow = null;
+  try {
+    metaNow = await loadHouseholdMeta(cloudHouseholdId);
+  } catch (e) {
+    console.warn(e);
+  }
+  const ownerUid = String(metaNow?.slots?.u1 || "");
+  const isOwner = Boolean(ownerUid && ownerUid === cloudUser?.uid);
+  const metaSafe = metaNow || {};
+  const connected = listHouseholdConnections(metaSafe, cloudUser?.uid || "");
+  const partnersForRemove = listPartnerEntries(metaSafe, ownerUid);
+  const maxPartners = 7;
+  const inviteDisabled = !isOwner || partnersForRemove.length >= maxPartners;
+
+  const partnersListHtml =
+    connected.length > 0
+      ? `<p class="field-hint" style="margin-bottom:0.35rem">Connected:</p><ul class="security-list partner-linked-list">${connected
+          .map((p) => `<li>${escapeHtml(p.name)}</li>`)
+          .join("")}</ul>`
+      : `<p class="field-hint" style="margin-bottom:0.75rem">No partner has joined yet.</p>`;
+
+  const removeBlock =
+    isOwner && partnersForRemove.length > 0
+      ? `<div class="field" style="margin-top:0.75rem;margin-bottom:0">
+          <label for="partner-remove-select">Remove a partner</label>
+          <div class="partner-remove-row">
+            <select id="partner-remove-select" aria-label="Partner to remove">
+              <option value="">Select…</option>
+              ${partnersForRemove
+                .map(
+                  (p) =>
+                    `<option value="${escapeAttr(p.uid)}">${escapeHtml(p.name)}</option>`
+                )
+                .join("")}
+            </select>
+            <button type="button" class="btn btn--danger" id="btn-remove-partner" disabled>Remove</button>
+          </div>
+          <p class="field-hint" style="margin-top:0.5rem;margin-bottom:0">Only the household owner can remove someone.</p>
+        </div>`
+      : !isOwner && connected.length > 0
+        ? `<p class="field-hint" style="margin-top:0.75rem;margin-bottom:0">Only the household owner can remove a partner.</p>`
+        : "";
+
+  const wrap = document.createElement("div");
+  wrap.className = "card";
+  wrap.style.maxWidth = "560px";
+  wrap.style.marginBottom = "1.5rem";
+  wrap.innerHTML = `
+          <h3 class="card__title" style="font-size: 1rem">Partner invite</h3>
+          <p class="field-hint" style="margin-bottom: 0.75rem">
+            Invite your partner by username. They register on this server, then open your invite link.
+          </p>
+          ${partnersListHtml}
+          <button type="button" class="btn btn--secondary" id="btn-invite-partner" ${
+            inviteDisabled ? "disabled" : ""
+          }>Create invite link</button>
+          ${removeBlock}
+          <p class="field-hint" id="invite-link-line" style="margin-top: 0.75rem; word-break: break-word"></p>
+        `;
+  about.parentElement.insertBefore(wrap, about);
+
+  document.getElementById("btn-invite-partner")?.addEventListener("click", async () => {
+    if (!cloudUser || !cloudHouseholdId) return;
+    try {
+      const toUsername = prompt(
+        "Partner username (they must register with this exact username before accepting)."
+      );
+      if (!toUsername) return;
+      const token = await createInvite(cloudHouseholdId, cloudUser.uid, toUsername);
+      const u = new URL(location.href);
+      u.searchParams.set("invite", token);
+      const line = document.getElementById("invite-link-line");
+      if (line) line.textContent = u.toString();
+      try {
+        await navigator.clipboard.writeText(u.toString());
+        showToast("Invite link copied.");
+      } catch {
+        showToast("Invite link created.");
+      }
+    } catch (e) {
+      console.warn(e);
+      showToast(e?.message ? String(e.message) : "Could not create invite link.");
+    }
+  });
+
+  const removeSel = document.getElementById("partner-remove-select");
+  const removeBtn = document.getElementById("btn-remove-partner");
+  removeSel?.addEventListener("change", () => {
+    if (removeBtn) removeBtn.disabled = !removeSel.value;
+  });
+  removeBtn?.addEventListener("click", async () => {
+    if (!cloudUser || !cloudHouseholdId) return;
+    const uid = removeSel?.value;
+    if (!uid) {
+      showToast("Select a partner to remove.");
+      return;
+    }
+    const label = removeSel?.selectedOptions?.[0]?.textContent?.trim() || "this person";
+    if (!confirm(`Remove ${label} from this household?`)) return;
+    try {
+      await removePartner(cloudHouseholdId, cloudUser.uid, uid);
+      showToast("Partner removed.");
+      window.location.reload();
+    } catch (e) {
+      console.warn(e);
+      showToast(e?.message ? String(e.message) : "Could not remove partner.");
+    }
+  });
+}
+
+async function syncServerDataInBackground(user, inviteToken) {
+  const syncLine = document.getElementById("sync-status-line");
+  try {
+    if (inviteToken) {
+      cloudHouseholdId = await withTimeout(
+        acceptInvite(inviteToken, user.uid, user.displayName, user.email || user.username),
+        15000,
+        "Invite acceptance timed out"
+      );
+      try {
+        const u = new URL(location.href);
+        u.searchParams.delete("invite");
+        history.replaceState({}, "", u.toString());
+      } catch (e) {}
+    } else {
+      cloudHouseholdId = householdIdForUser(user.uid);
+    }
+
+    await withTimeout(ensureHouseholdExists(cloudHouseholdId, user.uid), 15000, "Household setup timed out");
+    await withTimeout(
+      ensureUserProfile(user.uid, {
+        householdId: cloudHouseholdId,
+        name: String(user.displayName || ""),
+      }),
+      15000,
+      "Profile setup timed out"
+    );
+
+    let myState = await withTimeout(loadUserState(user.uid), 15000, "Loading data timed out");
+    if (!myState) {
+      myState = buildDefaultStateForUser(user.displayName);
+      await withTimeout(saveUserState(user.uid, cloudHouseholdId, myState), 15000, "Saving data timed out");
+    }
+
+    cloudMyState = ensureStateShape(myState);
+    appState = cloudMyState;
+
+    try {
+      const meta = await withTimeout(loadHouseholdMeta(cloudHouseholdId), 10000, "Household meta timed out");
+      cloudPartnerUid = (await partnerUidFromHousehold(cloudHouseholdId, user.uid)) || "";
+      cloudPartnerName = cloudPartnerUid
+        ? String(meta?.profiles?.[cloudPartnerUid]?.name || "Partner")
+        : "";
+      if (cloudPartnerUid) {
+        cloudPartnerState = await withTimeout(loadUserState(cloudPartnerUid), 10000, "Partner data timed out");
+      }
+    } catch (e) {
+      console.warn("Partner load skipped:", e);
+    }
+
+    try {
+      await hydrateMealImagesForState(user.uid, cloudMyState);
+    } catch (e) {
+      console.warn("Image hydrate skipped:", e);
+    }
+
+    window.__DIET_CLOUD_SESSION__ = {
+      uid: user.uid,
+      householdId: cloudHouseholdId,
+      userId: cloudUserId,
+      hasPartner: Boolean(cloudPartnerUid),
+    };
+
+    if (syncLine) {
+      syncLine.textContent = "Cloud sync: on — data stored on this server (SQLite).";
+    }
+    refreshUserSelects();
+    fillSettingsForm(viewState());
+    refreshMealsDashboardInsights();
+    void mountPartnerInviteUi();
+  } catch (e) {
+    console.warn("Background sync failed:", e);
+    if (syncLine) {
+      syncLine.textContent = "Cloud sync: offline — showing defaults until server responds.";
+    }
+    showToast(e?.message ? String(e.message) : "Could not sync with server. Showing defaults.");
+  }
+}
+
 function start() {
   void boot();
 }
@@ -508,211 +720,31 @@ async function boot() {
       if (!user || started) return;
       started = true;
       cloudUser = user;
-      try {
-        if (inviteToken) {
-          cloudHouseholdId = await acceptInvite(
-            inviteToken,
-            user.uid,
-            user.displayName,
-            user.email || user.username
-          );
-          try {
-            const u = new URL(location.href);
-            u.searchParams.delete("invite");
-            history.replaceState({}, "", u.toString());
-          } catch (e) {}
-        } else {
-          cloudHouseholdId = householdIdForUser(user.uid);
-        }
-
-        await ensureHouseholdExists(cloudHouseholdId, user.uid);
-        await ensureUserProfile(user.uid, {
-          householdId: cloudHouseholdId,
-          name: String(user.displayName || ""),
-        });
-
-        let myState = await loadUserState(user.uid);
-        if (!myState) {
-          myState = buildDefaultStateForUser(user.displayName);
-          await saveUserState(user.uid, cloudHouseholdId, myState);
-        }
-
-        cloudMyState = ensureStateShape(myState);
-        cloudUserId = "u1";
-        cloudPartnerUid = "";
-        cloudPartnerState = null;
-        appState = cloudMyState;
-
-        try {
-          const meta = await loadHouseholdMeta(cloudHouseholdId);
-          cloudPartnerUid = (await partnerUidFromHousehold(cloudHouseholdId, user.uid)) || "";
-          cloudPartnerName = cloudPartnerUid
-            ? String(meta?.profiles?.[cloudPartnerUid]?.name || "Partner")
-            : "";
-          if (cloudPartnerUid) {
-            cloudPartnerState = await loadUserState(cloudPartnerUid);
-          }
-        } catch (e) {
-          console.warn("Partner load skipped:", e);
-        }
-
-        try {
-          await hydrateMealImagesForState(user.uid, cloudMyState);
-        } catch (e) {
-          console.warn("Image hydrate skipped:", e);
-        }
-      } catch (e) {
-        started = false;
-        console.warn("Server load failed:", e);
-        const msg = e?.message ? String(e.message) : "Could not load your data. Try refresh.";
-        showToast(msg);
-        showServerLoginError(msg);
-        return;
-      }
-
-      hideLoginScreen();
+      cloudHouseholdId = householdIdForUser(user.uid);
+      cloudUserId = "u1";
+      cloudPartnerUid = "";
+      cloudPartnerState = null;
+      cloudMyState = ensureStateShape(buildDefaultStateForUser(user.displayName));
+      appState = cloudMyState;
 
       const syncLine = document.getElementById("sync-status-line");
       if (syncLine) {
-        syncLine.textContent = "Cloud sync: on — data stored on this server (SQLite).";
-      }
-
-      const about = document.querySelector("#view-settings .card:last-of-type");
-      if (about && !document.getElementById("btn-invite-partner")) {
-        void (async () => {
-          let metaNow = null;
-          try {
-            metaNow = await loadHouseholdMeta(cloudHouseholdId);
-          } catch (e) {
-            console.warn(e);
-          }
-          const ownerUid = String(metaNow?.slots?.u1 || "");
-          const isOwner = Boolean(ownerUid && ownerUid === cloudUser?.uid);
-          const metaSafe = metaNow || {};
-          const connected = listHouseholdConnections(metaSafe, cloudUser?.uid || "");
-          const partnersForRemove = listPartnerEntries(metaSafe, ownerUid);
-          const maxPartners = 7;
-          const inviteDisabled = !isOwner || partnersForRemove.length >= maxPartners;
-
-          const partnersListHtml =
-            connected.length > 0
-              ? `<p class="field-hint" style="margin-bottom:0.35rem">Connected:</p><ul class="security-list partner-linked-list">${connected
-                  .map((p) => `<li>${escapeHtml(p.name)}</li>`)
-                  .join("")}</ul>`
-              : `<p class="field-hint" style="margin-bottom:0.75rem">No partner has joined yet.</p>`;
-
-          const removeBlock =
-            isOwner && partnersForRemove.length > 0
-              ? `<div class="field" style="margin-top:0.75rem;margin-bottom:0">
-          <label for="partner-remove-select">Remove a partner</label>
-          <div class="partner-remove-row">
-            <select id="partner-remove-select" aria-label="Partner to remove">
-              <option value="">Select…</option>
-              ${partnersForRemove
-                .map(
-                  (p) =>
-                    `<option value="${escapeAttr(p.uid)}">${escapeHtml(p.name)}</option>`
-                )
-                .join("")}
-            </select>
-            <button type="button" class="btn btn--danger" id="btn-remove-partner" disabled>Remove</button>
-          </div>
-          <p class="field-hint" style="margin-top:0.5rem;margin-bottom:0">Only the household owner can remove someone.</p>
-        </div>`
-              : !isOwner && connected.length > 0
-                ? `<p class="field-hint" style="margin-top:0.75rem;margin-bottom:0">Only the household owner can remove a partner.</p>`
-                : "";
-
-          const wrap = document.createElement("div");
-          wrap.className = "card";
-          wrap.style.maxWidth = "560px";
-          wrap.style.marginBottom = "1.5rem";
-          wrap.innerHTML = `
-          <h3 class="card__title" style="font-size: 1rem">Partner invite</h3>
-          <p class="field-hint" style="margin-bottom: 0.75rem">
-            Invite your partner by username. They register on this server, then open your invite link.
-          </p>
-          ${partnersListHtml}
-          <button type="button" class="btn btn--secondary" id="btn-invite-partner" ${
-            inviteDisabled ? "disabled" : ""
-          }>Create invite link</button>
-          ${removeBlock}
-          <p class="field-hint" id="invite-link-line" style="margin-top: 0.75rem; word-break: break-word"></p>
-        `;
-          about.parentElement.insertBefore(wrap, about);
-
-          document.getElementById("btn-invite-partner")?.addEventListener("click", async () => {
-            if (!cloudUser || !cloudHouseholdId) return;
-            try {
-              const toUsername = prompt(
-                "Partner username (they must register with this exact username before accepting)."
-              );
-              if (!toUsername) return;
-              const token = await createInvite(cloudHouseholdId, cloudUser.uid, toUsername);
-              const u = new URL(location.href);
-              u.searchParams.set("invite", token);
-              const line = document.getElementById("invite-link-line");
-              if (line) line.textContent = u.toString();
-              try {
-                await navigator.clipboard.writeText(u.toString());
-                showToast("Invite link copied.");
-              } catch {
-                showToast("Invite link created.");
-              }
-            } catch (e) {
-              console.warn(e);
-              showToast(e?.message ? String(e.message) : "Could not create invite link.");
-            }
-          });
-
-          const removeSel = document.getElementById("partner-remove-select");
-          const removeBtn = document.getElementById("btn-remove-partner");
-          removeSel?.addEventListener("change", () => {
-            if (removeBtn) removeBtn.disabled = !removeSel.value;
-          });
-          removeBtn?.addEventListener("click", async () => {
-            if (!cloudUser || !cloudHouseholdId) return;
-            const uid = removeSel?.value;
-            if (!uid) {
-              showToast("Select a partner to remove.");
-              return;
-            }
-            const label = removeSel?.selectedOptions?.[0]?.textContent?.trim() || "this person";
-            if (!confirm(`Remove ${label} from this household?`)) return;
-            try {
-              await removePartner(cloudHouseholdId, cloudUser.uid, uid);
-              showToast("Partner removed.");
-              window.location.reload();
-            } catch (e) {
-              console.warn(e);
-              showToast(e?.message ? String(e.message) : "Could not remove partner.");
-            }
-          });
-        })();
+        syncLine.textContent = "Loading your data from server…";
       }
 
       try {
-        window.__DIET_CLOUD_SESSION__ = {
-          uid: cloudUser?.uid || "",
-          householdId: cloudHouseholdId || "",
-          userId: cloudUserId || "u1",
-          hasPartner: Boolean(cloudPartnerUid),
-        };
-      } catch (e) {}
-
-      try {
+        hideLoginScreen();
         initMainApp();
       } catch (e) {
         started = false;
         console.error("Main app failed:", e);
         const msg = e?.message ? String(e.message) : "App failed to start. Try refresh.";
         showToast(msg);
-        if (typeof window.__DIET_SET_BOOT_ERROR__ === "function") {
-          window.__DIET_SET_BOOT_ERROR__(msg);
-        } else {
-          showServerLoginError(msg);
-        }
+        showBootOrLoginError(msg);
+        return;
       }
+
+      void syncServerDataInBackground(user, inviteToken);
     }
 
     const apiUser = window.__DIET_SERVER_API_USER__;
@@ -727,6 +759,8 @@ async function boot() {
     }
     if (sessionUser) {
       await startAuthedSession(sessionUser);
+    } else if (location.pathname === "/app" || location.pathname.endsWith("/app")) {
+      location.replace("/");
     } else {
       showServerLoginError("Not signed in. Enter your username and password.");
     }
