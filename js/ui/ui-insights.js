@@ -110,7 +110,7 @@ function renderTrendGrid(yMax, mode) {
       return `<line class="daybars-trend__grid${isBase ? " daybars-trend__grid--base" : ""}" x1="${TREND_PAD_L}" y1="${y}" x2="${TREND_PAD_L + TREND_PLOT_W}" y2="${y}" />`;
     })
     .join("");
-  return { ticks, gridLines, yBottom };
+  return { ticks, gridLines };
 }
 
 /**
