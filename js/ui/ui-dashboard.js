@@ -61,9 +61,6 @@ function wellnessKpiCard(value) {
 export function renderWeeklyDashboard(mount, state, weekCursor) {
   if (!mount) return;
 
-  const u1 = state.users.find((x) => x.id === "u1");
-  const personName = u1?.name || "You";
-
   const labelEl = document.getElementById("week-range-label");
   if (labelEl) {
     const agg = aggregateWeek(state.meals, weekCursor);
@@ -77,11 +74,6 @@ export function renderWeeklyDashboard(mount, state, weekCursor) {
     <div class="dash-stack">
     <div class="dash-add-meal">
       <button type="button" class="btn btn--primary dash-add-meal__btn" data-nav="log" data-new-meal="true" aria-label="Add a new meal to your log">Add New Meal</button>
-    </div>
-    <div class="dash-hero dash-hero--solo">
-      <p class="dash-hero__eyebrow">This week</p>
-      <h3 class="dash-hero__title">${escapeHtml(personName)}</h3>
-      <p class="dash-hero__sub">Your meals, calories, and ratings for the selected week.</p>
     </div>
 
     <div class="dash-kpi-grid dash-kpi-grid--solo">
