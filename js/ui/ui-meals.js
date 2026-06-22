@@ -578,7 +578,8 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
   const dateVal = safeDateInputForEdit(meal.datetime);
   const timeVal = safeTimeInputForEdit(meal.datetime);
   document.getElementById("edit-meal-id").value = meal.id;
-  // Meals are always logged for the single user (u1).
+  const editUser = document.getElementById("edit-user");
+  if (editUser) editUser.value = meal.userId || "u1";
   const editMealItemsList = document.getElementById("edit-meal-items-list");
   const editMealItemsAddBtn = document.getElementById("btn-add-edit-meal-item");
   bindMealItemsList(editMealItemsList, editMealItemsAddBtn);
@@ -680,7 +681,7 @@ export function openEditModal(state, mealId, passwordRef, persist, showToast, on
 
     const updated = updateMeal(state, meal.id, {
       items: collectMealItemsFromList(editMealItemsList),
-      userId: meal.userId || "u1",
+      userId: document.getElementById("edit-user")?.value || meal.userId || "u1",
       title: collectMealItemsFromList(editMealItemsList)[0] || meal.title,
       datetime: dt,
       calories: document.getElementById("edit-calories").value,

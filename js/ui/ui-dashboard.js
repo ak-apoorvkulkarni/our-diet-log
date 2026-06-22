@@ -1,5 +1,5 @@
 /**
- * Weekly overview — single-user dashboard.
+ * Weekly overview — two people in one diary.
  */
 import {
   startOfWeekMonday,
@@ -11,11 +11,13 @@ import {
 const SCOPE_KEY = "diet_dashboard_scope";
 
 export function getDashboardScope() {
-  return "u1";
+  const v = sessionStorage.getItem(SCOPE_KEY);
+  if (v === "u1" || v === "u2" || v === "all") return v;
+  return "all";
 }
 
-export function setDashboardScope(_scope) {
-  sessionStorage.setItem(SCOPE_KEY, "u1");
+export function setDashboardScope(scope) {
+  sessionStorage.setItem(SCOPE_KEY, scope);
 }
 
 function escapeHtml(s) {
@@ -58,19 +60,80 @@ function wellnessKpiCard(value) {
     </div>`;
 }
 
-export function renderWeeklyDashboard(mount, state, weekCursor) {
-  if (!mount) return;
+function syncScopeTabs(scope) {
+  document.querySelectorAll("[data-dashboard-scope]").forEach((btn) => {
+    const s = btn.getAttribute("data-dashboard-scope");
+    const on = s === scope;
+    btn.setAttribute("aria-selected", on ? "true" : "false");
+    btn.classList.toggle("is-active", on);
+  });
+}
 
-  const labelEl = document.getElementById("week-range-label");
-  if (labelEl) {
-    const agg = aggregateWeek(state.meals, weekCursor);
-    labelEl.textContent = formatRange(agg.from, agg.to);
-  }
+function updatePersonTabNames(state) {
+  const u1 = state.users.find((x) => x.id === "u1");
+  const u2 = state.users.find((x) => x.id === "u2");
+  const n1 = document.querySelector('[data-scope-name="u1"]');
+  const n2 = document.querySelector('[data-scope-name="u2"]');
+  if (n1 && u1) n1.textContent = u1.name;
+  if (n2 && u2) n2.textContent = u2.name;
+}
 
-  const agg = aggregateWeek(state.meals, weekCursor, "u1");
+function renderHouseholdDashboard(state, weekCursor, name1, name2) {
+  const agg = aggregateWeek(state.meals, weekCursor);
+  const a1 = aggregateWeek(state.meals, weekCursor, "u1");
+  const a2 = aggregateWeek(state.meals, weekCursor, "u2");
   const ws = wellnessScore(agg.health, agg.rated);
 
-  mount.innerHTML = `
+  return `
+    <div class="dash-stack">
+    <div class="dash-add-meal">
+      <button type="button" class="btn btn--primary dash-add-meal__btn" data-nav="log" data-new-meal="true" aria-label="Add a new meal to your log">Add New Meal</button>
+    </div>
+
+    <div class="dash-kpi-grid">
+      ${kpiCard(agg.totalMeals, "Meals logged", "both people")}
+      ${kpiCard(agg.caloriesSum || "—", "Total kcal tracked", "where known")}
+      ${kpiCard(agg.avgCalories ?? "—", "Avg kcal / meal", "where known")}
+      ${wellnessKpiCard(ws)}
+    </div>
+
+    <div class="dash-compare card" role="region" aria-label="People">
+      <div class="dash-people-table-wrap">
+        <table class="dash-people-table">
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col" class="dash-people-table__num">Meals</th>
+              <th scope="col" class="dash-people-table__num">Calories</th>
+              <th scope="col" class="dash-people-table__num">Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">${escapeHtml(name1)}</th>
+              <td class="dash-people-table__num">${a1.totalMeals}</td>
+              <td class="dash-people-table__num">${a1.caloriesSum != null ? a1.caloriesSum : "—"}</td>
+              <td class="dash-people-table__num">${wellnessScore(a1.health, a1.rated) ?? "—"}</td>
+            </tr>
+            <tr>
+              <th scope="row">${escapeHtml(name2)}</th>
+              <td class="dash-people-table__num">${a2.totalMeals}</td>
+              <td class="dash-people-table__num">${a2.caloriesSum != null ? a2.caloriesSum : "—"}</td>
+              <td class="dash-people-table__num">${wellnessScore(a2.health, a2.rated) ?? "—"}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    </div>
+  `;
+}
+
+function renderIndividualDashboard(state, weekCursor, userId, personName) {
+  const agg = aggregateWeek(state.meals, weekCursor, userId);
+  const ws = wellnessScore(agg.health, agg.rated);
+
+  return `
     <div class="dash-stack">
     <div class="dash-add-meal">
       <button type="button" class="btn btn--primary dash-add-meal__btn" data-nav="log" data-new-meal="true" aria-label="Add a new meal to your log">Add New Meal</button>
@@ -86,7 +149,45 @@ export function renderWeeklyDashboard(mount, state, weekCursor) {
   `;
 }
 
-export function bindDashboardScope(_rerender) {}
+export function renderWeeklyDashboard(mount, state, weekCursor) {
+  if (!mount) return;
+
+  const scope = getDashboardScope();
+  syncScopeTabs(scope);
+  updatePersonTabNames(state);
+
+  const u1 = state.users.find((x) => x.id === "u1");
+  const u2 = state.users.find((x) => x.id === "u2");
+  const name1 = u1?.name || "User 1";
+  const name2 = u2?.name || "User 2";
+
+  const labelEl = document.getElementById("week-range-label");
+  if (labelEl) {
+    const agg = aggregateWeek(state.meals, weekCursor);
+    labelEl.textContent = formatRange(agg.from, agg.to);
+  }
+
+  if (scope === "all") {
+    mount.innerHTML = renderHouseholdDashboard(state, weekCursor, name1, name2);
+    return;
+  }
+
+  const uid = scope === "u2" ? "u2" : "u1";
+  const personName = uid === "u2" ? name2 : name1;
+  mount.innerHTML = renderIndividualDashboard(state, weekCursor, uid, personName);
+}
+
+export function bindDashboardScope(rerender) {
+  document.querySelectorAll("[data-dashboard-scope]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-dashboard-scope");
+      if (id === "all" || id === "u1" || id === "u2") {
+        setDashboardScope(id);
+        rerender();
+      }
+    });
+  });
+}
 
 export function bindWeekNav(getCursor, setCursor, rerender) {
   document.getElementById("week-prev")?.addEventListener("click", () => {

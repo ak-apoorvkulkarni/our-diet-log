@@ -450,15 +450,19 @@ function renderMonthCalendarBody(meals, monthCursor) {
 }
 
 /** Renders into #dashboard-insights-mount on Overview. */
-export function renderDashboardInsights(mount, state, weekCursor, showToast, _dashboardScope) {
+export function renderDashboardInsights(mount, state, weekCursor, showToast, dashboardScope) {
   if (!mount) return;
 
   const u1 = state.users.find((x) => x.id === "u1");
-  const name1 = u1?.name || "You";
-  const scopedMeals = state.meals || [];
-  const scopedUserId = "u1";
-  const scopedName = name1;
-  const isHouseholdScope = false;
+  const u2 = state.users.find((x) => x.id === "u2");
+  const name1 = u1?.name || "User 1";
+  const name2 = u2?.name || "User 2";
+  const isHouseholdScope = dashboardScope === "all";
+  const scopedUserId = dashboardScope === "u2" ? "u2" : "u1";
+  const scopedName = scopedUserId === "u2" ? name2 : name1;
+  const scopedMeals = isHouseholdScope
+    ? state.meals
+    : (state.meals || []).filter((m) => (m.userId === "u2" ? "u2" : "u1") === scopedUserId);
 
   const weekDaily = weekDailyByPerson(scopedMeals, weekCursor);
   const healthCounts = isHouseholdScope

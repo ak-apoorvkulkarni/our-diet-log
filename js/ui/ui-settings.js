@@ -1,5 +1,5 @@
 /**
- * Settings: display name, sign out, delete account.
+ * Settings: people names, sign out, delete account.
  */
 import { isServerMode } from "../server-config.js";
 import { deleteAllMealImagesFirestore } from "../api-store.js";
@@ -8,9 +8,16 @@ import { apiFetch } from "../api-client.js";
 export function bindSettings(state, passwordRef, persist, showToast, onLock) {
   document.getElementById("settings-user1-name")?.addEventListener("change", async (e) => {
     const u = state.users.find((x) => x.id === "u1");
-    if (u) u.name = e.target.value.trim() || "You";
+    if (u) u.name = e.target.value.trim() || "User 1";
     await persist(passwordRef());
-    showToast("Name saved.");
+    showToast("Names saved.");
+    window.dispatchEvent(new CustomEvent("diet-users-updated"));
+  });
+  document.getElementById("settings-user2-name")?.addEventListener("change", async (e) => {
+    const u = state.users.find((x) => x.id === "u2");
+    if (u) u.name = e.target.value.trim() || "User 2";
+    await persist(passwordRef());
+    showToast("Names saved.");
     window.dispatchEvent(new CustomEvent("diet-users-updated"));
   });
 
@@ -46,8 +53,11 @@ export function bindSettings(state, passwordRef, persist, showToast, onLock) {
 
 export function fillSettingsForm(state) {
   const u1 = state.users.find((x) => x.id === "u1");
+  const u2 = state.users.find((x) => x.id === "u2");
   const i1 = document.getElementById("settings-user1-name");
+  const i2 = document.getElementById("settings-user2-name");
   if (i1 && u1) i1.value = u1.name;
+  if (i2 && u2) i2.value = u2.name;
 
   const syncLine = document.getElementById("sync-status-line");
   if (syncLine) {

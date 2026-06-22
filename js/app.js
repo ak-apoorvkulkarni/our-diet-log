@@ -117,10 +117,31 @@ function setView(id) {
 
 function refreshUserSelects() {
   const s = viewState();
-  const u1 = s.users?.find((u) => u.id === "u1");
-  const name = u1?.name || "You";
-  const i1 = document.getElementById("settings-user1-name");
-  if (i1 && !i1.value) i1.value = name;
+  const opts = (s.users || [])
+    .map((u) => `<option value="${escapeAttr(u.id)}">${escapeHtml(u.name)}</option>`)
+    .join("");
+  ["meal-user", "edit-user", "filter-user"].forEach((id) => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const v = sel.value;
+    sel.innerHTML = id === "filter-user" ? `<option value="all">Both</option>${opts}` : opts;
+    if ([...sel.options].some((o) => o.value === v)) sel.value = v;
+  });
+}
+
+function escapeAttr(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;");
+}
+
+function escapeHtml(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function buildMealFilters() {
@@ -128,7 +149,7 @@ function buildMealFilters() {
   if (!search) return null;
   return {
     query: document.getElementById("meals-search")?.value || "",
-    userId: "u1",
+    userId: document.getElementById("filter-user")?.value || "all",
     category: document.getElementById("meals-filter-category")?.value || "all",
     from: document.getElementById("meals-date-from")?.value || "",
     to: document.getElementById("meals-date-to")?.value || "",
@@ -361,6 +382,7 @@ function initMainApp() {
       closeMobileSidebarIfNeeded();
     });
 
+    document.getElementById("filter-user")?.addEventListener("change", renderMealsView);
     ["meals-search", "meals-filter-category", "meals-date-from", "meals-date-to"].forEach((id) => {
       document.getElementById(id)?.addEventListener("input", renderMealsView);
       document.getElementById(id)?.addEventListener("change", renderMealsView);
